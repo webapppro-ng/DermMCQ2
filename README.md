@@ -27,12 +27,17 @@ The database is created and seeded from `db/questions.json` on first start.
 | `users`     | Email, name, scrypt password hash |
 | `sessions`  | Login tokens (HTTP-only cookie, 30 days) |
 | `answers`   | One row per user per question: selected option and whether it was correct |
+| `flags`     | Questions a user has flagged for review, with an optional note |
 
 ## Question bank
 
 `db/questions.json` holds 507 single-best-answer questions imported from the author's Word document
 (307 practice questions plus two 100-question papers), each with its correct answer and explanation,
-grouped into the 15 topics. Each question's `source` field records where it came from in the document
+grouped into the 15 topics.
+
+Any question can be flagged for review, before or after answering, with an optional note. The main topics
+page shows how many questions are flagged and opens a reviewer that steps through them one at a time
+(Previous/Next or the arrow keys), revealing the answer and explanation. Each question's `source` field records where it came from in the document
 (`PQ.12` = practice question 12, `P1.5` / `P2.5` = question 5 of paper 1 / paper 2). Explanations store
 one point per line and are shown as a bulleted list.
 
@@ -60,6 +65,9 @@ its explanation changes.
 | POST | `/api/answer` | `{questionId, selected}` → correctness and explanation |
 | POST | `/api/topics/:slug/reset` | Clear the user's answers for one topic |
 | GET  | `/api/stats` | Overall and per-topic performance |
+| PUT  | `/api/flags/:questionId` | Flag a question for review, or update its note: `{note?}` |
+| DELETE | `/api/flags/:questionId` | Remove a flag |
+| GET  | `/api/flags` | Flagged questions with answer, explanation, note and the user's own answer, newest first |
 
 All routes live in `src/core.js`, which is written against a small SQL adapter so the same code runs on
 the server and in the browser prototype.

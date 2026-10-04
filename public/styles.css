@@ -224,3 +224,41 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
   .explanation, .verdict { animation: rise 0.25s ease-out; }
   @keyframes rise { from { transform: translateY(4px); opacity: 0.4; } to { transform: none; opacity: 1; } }
 }
+
+/* Flag for review */
+.flag-icon { width: 16px; height: 16px; flex: none; }
+.btn-flag { background: transparent; border-color: var(--line); color: var(--muted); }
+.btn-flag:hover { border-color: var(--eosin); color: var(--eosin); }
+.btn-flag[aria-pressed="true"] { background: var(--eosin-soft); border-color: var(--eosin); color: var(--eosin); }
+.btn-flag[aria-pressed="true"] .flag-icon path { fill: currentColor; fill-opacity: 0.25; }
+.actions { justify-content: space-between; }
+.flag-note { display: grid; gap: 6px; }
+.flag-note label { font-size: 0.85rem; font-weight: 500; }
+.flag-note .row { flex-wrap: nowrap; }
+.flag-note input {
+  flex: 1; min-width: 0; font: inherit; padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+}
+.flag-note input:focus { outline: 2px solid var(--eosin); outline-offset: -1px; }
+.flag-panel {
+  width: 100%; display: flex; align-items: center; gap: 14px; text-align: left;
+  padding: 14px 16px; border-radius: var(--r); background: var(--eosin-soft);
+  border: 1px solid transparent; color: var(--fg); cursor: pointer;
+}
+.flag-panel > .flag-icon { width: 22px; height: 22px; color: var(--eosin); }
+.flag-panel:hover { border-color: var(--eosin); }
+.flag-panel.is-empty { background: transparent; border: 1px dashed var(--line); cursor: default; }
+.flag-panel.is-empty > .flag-icon { color: var(--muted); }
+.flag-panel-text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.flag-panel-text span { font-size: 0.85rem; color: var(--muted); }
+.flag-panel-go { font-weight: 600; color: var(--eosin); white-space: nowrap; }
+.review-meta { gap: 12px; }
+.chip { font-size: 0.78rem; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+.chip-ok { background: var(--ok-soft); color: var(--ok); }
+.chip-bad { background: var(--bad-soft); color: var(--bad); }
+div.option { cursor: default; }
+.review-nav .spacer { flex: 1; }
+@media (max-width: 720px) {
+  .review-nav .spacer { display: none; }
+  .review-nav .btn-flag { width: 100%; }
+}

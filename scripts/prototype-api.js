@@ -95,11 +95,16 @@
       }
       const progressRef = shared.db.doc('data/users/' + shared.uid + '/progress');
       const snap = await progressRef.get();
-      const saved = (snap.exists && snap.data().answers) || {};
-      for (const [k, a] of Object.entries(saved)) {
+      const savedDoc = (snap.exists && snap.data()) || {};
+      for (const [k, a] of Object.entries(savedDoc.answers || {})) {
         if (!keyToId[k] || !/^[A-E]$/.test(a.s)) continue;
         db.run('INSERT OR IGNORE INTO answers (user_id, question_id, selected_option, is_correct, answered_at) VALUES (?, ?, ?, ?, ?)',
           [userId, keyToId[k], a.s, a.c ? 1 : 0, String(a.at || '')]);
+      }
+      for (const [k, f] of Object.entries(savedDoc.flags || {})) {
+        if (!keyToId[k]) continue;
+        db.run('INSERT OR IGNORE INTO flags (user_id, question_id, note, flagged_at) VALUES (?, ?, ?, ?)',
+          [userId, keyToId[k], String((f && f.n) || '').slice(0, 500), String((f && f.at) || '')]);
       }
 
       let chain = Promise.resolve();
@@ -108,10 +113,14 @@
         for (const r of db.all('SELECT question_id, selected_option, is_correct, answered_at FROM answers WHERE user_id = ?', [userId])) {
           answers[idToKey[r.question_id]] = { s: r.selected_option, c: r.is_correct, at: r.answered_at };
         }
+        const flags = {};
+        for (const r of db.all('SELECT question_id, note, flagged_at FROM flags WHERE user_id = ?', [userId])) {
+          flags[idToKey[r.question_id]] = { n: r.note, at: r.flagged_at };
+        }
         chain = chain
-          .then(() => progressRef.set({ answers, updatedAt: new Date().toISOString() }))
+          .then(() => progressRef.set({ answers, flags, updatedAt: new Date().toISOString() }))
           .then(() => setNote('Your progress is saved to your claude.ai account and follows you across devices.'))
-          .catch(() => setNote('Your answers could not be saved, so progress will be lost when you leave. Ask the owner of this page for Contributor access.'));
+          .catch(() => setNote('Your answers and flags could not be saved, so they will be lost when you leave. Ask the owner of this page for Contributor access.'));
         return chain;
       };
       setNote('Signed in with your claude.ai account. Progress is saved and follows you across devices.');

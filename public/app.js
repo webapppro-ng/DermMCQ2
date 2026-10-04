@@ -3,7 +3,8 @@
 
   const app = document.getElementById('app');
   const nav = document.getElementById('nav');
-  const state = { user: null, view: 'auth', topic: null, authTab: 'login' };
+  const state = { user: null, view: 'auth', topic: null, authTab: 'login', flags: [], flagIndex: 0, revealed: new Set() };
+  const FLAG_ICON = '<svg class="flag-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 15V1.5M3 2h9l-2 3.5L12 9H3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 
   const esc = (s) =>
     String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -34,7 +35,7 @@
     nav.hidden = !state.user;
     if (!state.user) return;
     document.getElementById('nav-user').textContent = state.user.name;
-    for (const v of ['topics', 'performance']) {
+    for (const v of ['topics', 'flagged', 'performance']) {
       const el = document.getElementById('nav-' + v);
       if (state.view === v) el.setAttribute('aria-current', 'page');
       else el.removeAttribute('aria-current');
@@ -48,6 +49,7 @@
     if (state.view === 'topics') return renderTopics();
     if (state.view === 'quiz') return renderQuiz();
     if (state.view === 'performance') return renderPerformance();
+    if (state.view === 'flagged') return renderFlagged();
   }
 
   /* ---------- Auth ---------- */
@@ -115,7 +117,7 @@
   }
 
   async function renderTopics() {
-    const { topics } = await api('GET', '/api/topics');
+    const { topics, flagged } = await api('GET', '/api/topics');
     const answered = topics.reduce((n, t) => n + t.answered, 0);
     const total = topics.reduce((n, t) => n + t.total, 0);
     const correct = topics.reduce((n, t) => n + t.correct, 0);
@@ -129,6 +131,17 @@
         <div><strong class="num">${answered}<span class="muted" style="font-size:1rem"> / ${total}</span></strong><span>questions answered</span></div>
         <div><strong class="num">${pctText(pct(correct, answered))}</strong><span>correct overall</span></div>
       </div>
+      ${flagged
+        ? `<button class="flag-panel" type="button" id="open-flags">
+             ${FLAG_ICON}
+             <span class="flag-panel-text"><strong>Flagged for review</strong>
+               <span class="num">${flagged} question${flagged === 1 ? '' : 's'} saved to go back over</span></span>
+             <span class="flag-panel-go">Review →</span>
+           </button>`
+        : `<div class="flag-panel is-empty">${FLAG_ICON}
+             <span class="flag-panel-text"><strong>Flagged for review</strong>
+               <span>Use the “Flag for review” button on any question and it will be collected here.</span></span>
+           </div>`}
       <ul class="topic-list">
         ${topics.map((t) => `
           <li>
@@ -141,6 +154,8 @@
           </li>`).join('')}
       </ul>`;
     app.querySelectorAll('.topic').forEach((b) => (b.onclick = () => go('quiz', b.dataset.slug)));
+    const open = document.getElementById('open-flags');
+    if (open) open.onclick = () => { state.flagIndex = 0; go('flagged'); };
   }
 
   /* ---------- Quiz ---------- */
@@ -209,11 +224,14 @@
             </button></li>`).join('')}
         </ul>
         <div id="feedback"></div>
-        <div class="row">
+        <div class="row actions">
           <button class="btn btn-primary" type="button" id="submit" disabled>Submit answer</button>
+          ${flagControlHtml(question)}
         </div>
+        ${flagNoteHtml(question)}
       </section>`;
     document.getElementById('back').onclick = () => go('topics');
+    wireFlag(question);
     const buttons = [...app.querySelectorAll('.option')];
     const submit = document.getElementById('submit');
     buttons.forEach((b) => {
@@ -252,6 +270,152 @@
       submit.focus();
     };
   }
+
+  /* ---------- Flags ---------- */
+  // In the reviewer every question is flagged, so the button there reads as an action: "Remove flag".
+  function flagLabel(flagged) {
+    return flagged ? (state.view === 'flagged' ? 'Remove flag' : 'Flagged for review') : 'Flag for review';
+  }
+  function flagControlHtml(q) {
+    return `<button class="btn btn-flag" type="button" id="flag-toggle" aria-pressed="${q.flagged}">
+      ${FLAG_ICON}<span>${flagLabel(q.flagged)}</span></button>`;
+  }
+  function flagNoteHtml(q) {
+    return `<div class="flag-note" id="flag-note"${q.flagged ? '' : ' hidden'}>
+      <label for="flag-note-input">Note for your review <span class="muted">(optional)</span></label>
+      <div class="row">
+        <input id="flag-note-input" maxlength="500" placeholder="e.g. Re-read the guideline on this" value="${esc(q.note || '')}">
+        <span class="hint" id="flag-note-status" aria-live="polite"></span>
+      </div>
+    </div>`;
+  }
+  // Wires the flag button and note field; keeps q.flagged / q.note current and reports changes.
+  function wireFlag(q, onChange) {
+    const btn = document.getElementById('flag-toggle');
+    const box = document.getElementById('flag-note');
+    const input = document.getElementById('flag-note-input');
+    const status = document.getElementById('flag-note-status');
+    btn.onclick = async () => {
+      btn.disabled = true;
+      try {
+        const out = q.flagged
+          ? await api('DELETE', `/api/flags/${q.id}`)
+          : await api('PUT', `/api/flags/${q.id}`, { note: input.value });
+        q.flagged = out.flagged; q.note = out.note;
+        btn.setAttribute('aria-pressed', String(q.flagged));
+        btn.querySelector('span').textContent = flagLabel(q.flagged);
+        box.hidden = !q.flagged;
+        status.textContent = '';
+        if (!q.flagged) input.value = '';
+        if (onChange) onChange(q);
+      } catch (err) {
+        status.textContent = err.message;
+      }
+      btn.disabled = false;
+    };
+    input.onchange = async () => {
+      if (!q.flagged || input.value.trim() === (q.note || '')) return;
+      try {
+        const out = await api('PUT', `/api/flags/${q.id}`, { note: input.value });
+        q.note = out.note;
+        status.textContent = 'Note saved';
+        if (onChange) onChange(q);
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    };
+    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } };
+  }
+
+  async function renderFlagged() {
+    const { questions } = await api('GET', '/api/flags');
+    state.flags = questions;
+    drawFlagged();
+  }
+
+  // Steps through flagged questions one at a time from the cached list.
+  function drawFlagged() {
+    const list = state.flags;
+    if (!list.length) {
+      app.innerHTML = `
+        <section class="quiz">
+          <div>
+            <button class="back" type="button" id="back">← All topics</button>
+            <h2>Flagged for review</h2>
+          </div>
+          <div class="card">
+            <p class="lede" style="margin:0">You have no flagged questions. While answering, use “Flag for review” to save a question here with an optional note.</p>
+            <div class="row" style="margin-top:16px"><button class="btn btn-primary" type="button" id="to-topics">Choose a topic</button></div>
+          </div>
+        </section>`;
+      document.getElementById('back').onclick = () => go('topics');
+      document.getElementById('to-topics').onclick = () => go('topics');
+      return;
+    }
+    state.flagIndex = Math.max(0, Math.min(state.flagIndex, list.length - 1));
+    const i = state.flagIndex;
+    const q = list[i];
+    const revealed = !!q.answer || state.revealed.has(q.id);
+    const status = q.answer
+      ? `<span class="chip ${q.answer.correct ? 'chip-ok' : 'chip-bad'}">You answered ${q.answer.selected} · ${q.answer.correct ? 'correct' : 'incorrect'}</span>`
+      : '<span class="chip">Not answered yet</span>';
+    app.innerHTML = `
+      <section class="quiz">
+        <div>
+          <button class="back" type="button" id="back">← All topics</button>
+          <div class="quiz-head">
+            <h2>Flagged for review</h2>
+            <span class="eyebrow num">${i + 1} of ${list.length}</span>
+          </div>
+          <div class="bar" aria-hidden="true" style="margin-top:10px"><i style="width:${((i + 1) / list.length) * 100}%"></i></div>
+        </div>
+        <div class="row review-meta"><span class="eyebrow">${esc(q.topic.name)}</span>${status}</div>
+        <p class="stem">${esc(q.stem)}</p>
+        <ul class="options">
+          ${q.options.map((o) => {
+            let cls = '', tag = '';
+            if (revealed && o.key === q.correctOption) { cls = ' is-correct'; tag = 'Correct answer'; }
+            else if (revealed && q.answer && o.key === q.answer.selected) { cls = ' is-wrong'; tag = 'Your answer'; }
+            return `<li><div class="option${cls}"><span class="key">${o.key}</span><span class="text">${esc(o.text)}</span><span class="tag">${tag}</span></div></li>`;
+          }).join('')}
+        </ul>
+        ${revealed
+          ? `<div class="explanation"><p class="verdict">The answer is ${q.correctOption}</p>${explanationHtml(q.explanation)}</div>`
+          : '<div class="row"><button class="btn btn-ghost" type="button" id="reveal">Show answer and explanation</button></div>'}
+        ${flagNoteHtml(Object.assign({}, q, { flagged: true }))}
+        <div class="row review-nav">
+          <button class="btn btn-ghost" type="button" id="prev"${i === 0 ? ' disabled' : ''}>← Previous</button>
+          <button class="btn btn-primary" type="button" id="next"${i === list.length - 1 ? ' disabled' : ''}>Next →</button>
+          <span class="spacer"></span>
+          ${flagControlHtml({ flagged: true })}
+        </div>
+        <p class="hint">Use the ← and → keys to move between flagged questions. Removing a flag takes the question off this list.</p>
+      </section>`;
+    document.getElementById('back').onclick = () => go('topics');
+    document.getElementById('prev').onclick = () => stepFlag(-1);
+    document.getElementById('next').onclick = () => stepFlag(1);
+    const reveal = document.getElementById('reveal');
+    if (reveal) reveal.onclick = () => { state.revealed.add(q.id); drawFlagged(); };
+    const live = Object.assign({}, q, { flagged: true });
+    wireFlag(live, (updated) => {
+      q.note = updated.note;
+      if (!updated.flagged) { state.flags.splice(i, 1); drawFlagged(); }
+    });
+  }
+
+  function stepFlag(delta) {
+    const next = state.flagIndex + delta;
+    if (next < 0 || next >= state.flags.length) return;
+    state.flagIndex = next;
+    drawFlagged();
+    window.scrollTo(0, 0);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (state.view !== 'flagged' || e.target.closest('input, textarea')) return;
+    if (e.key === 'ArrowLeft') stepFlag(-1);
+    if (e.key === 'ArrowRight') stepFlag(1);
+  });
 
   /* ---------- Performance ---------- */
   async function renderPerformance() {
@@ -292,7 +456,11 @@
   }
 
   /* ---------- Boot ---------- */
-  document.querySelectorAll('[data-nav]').forEach((b) => (b.onclick = () => state.user && go(b.dataset.nav)));
+  document.querySelectorAll('[data-nav]').forEach((b) => (b.onclick = () => {
+    if (!state.user) return;
+    if (b.dataset.nav === 'flagged') state.flagIndex = 0;
+    go(b.dataset.nav);
+  }));
   document.getElementById('logout').onclick = async () => {
     await api('POST', '/api/logout');
     state.user = null;

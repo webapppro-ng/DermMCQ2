@@ -76,6 +76,7 @@
       for (const row of db.all('SELECT id FROM questions', [])) {
         if (!keep.has(Number(row.id))) {
           db.run('DELETE FROM answers WHERE question_id = ?', [row.id]);
+          db.run('DELETE FROM flags WHERE question_id = ?', [row.id]);
           db.run('DELETE FROM questions WHERE id = ?', [row.id]);
         }
       }
@@ -115,6 +116,11 @@
       const user = userFromToken(token);
       if (!user) throw new HttpError(401, 'Please log in to continue.');
       return user;
+    }
+
+    function flagState(userId, questionId) {
+      const f = db.get('SELECT note FROM flags WHERE user_id = ? AND question_id = ?', [userId, questionId]);
+      return { flagged: !!f, note: f ? f.note : '' };
     }
 
     function topicBySlug(slug) {
@@ -184,7 +190,8 @@
 
       async 'GET /api/topics'({ token }) {
         const user = requireUser(token);
-        return { body: { topics: topicStats(user.id) } };
+        const flagged = Number(db.get('SELECT COUNT(*) AS n FROM flags WHERE user_id = ?', [user.id]).n);
+        return { body: { topics: topicStats(user.id), flagged } };
       },
 
       async 'GET /api/topics/:slug/next'({ token, params }) {
@@ -209,6 +216,7 @@
                   id: Number(q.id),
                   stem: q.stem,
                   options: OPTIONS.map((k) => ({ key: k, text: q['option_' + k.toLowerCase()] })),
+                  ...flagState(user.id, q.id),
                 }
               : null,
           },
@@ -232,6 +240,60 @@
         );
         return {
           body: { correct: !!isCorrect, selected, correctOption: q.correct_option, explanation: q.explanation },
+        };
+      },
+
+      // Flag (or update the note on) a question for later review. Works whether or not it has been answered.
+      async 'PUT /api/flags/:id'({ token, params, body }) {
+        const user = requireUser(token);
+        const questionId = Number(params.id);
+        if (!db.get('SELECT id FROM questions WHERE id = ?', [questionId])) throw new HttpError(404, 'That question does not exist.');
+        const note = String(body.note || '').trim();
+        if (note.length > 500) throw new HttpError(400, 'Keep the note under 500 characters.');
+        if (db.get('SELECT id FROM flags WHERE user_id = ? AND question_id = ?', [user.id, questionId])) {
+          db.run('UPDATE flags SET note = ? WHERE user_id = ? AND question_id = ?', [note, user.id, questionId]);
+        } else {
+          db.run('INSERT INTO flags (user_id, question_id, note, flagged_at) VALUES (?, ?, ?, ?)',
+            [user.id, questionId, note, new Date().toISOString()]);
+        }
+        return { body: flagState(user.id, questionId) };
+      },
+
+      async 'DELETE /api/flags/:id'({ token, params }) {
+        const user = requireUser(token);
+        db.run('DELETE FROM flags WHERE user_id = ? AND question_id = ?', [user.id, Number(params.id)]);
+        return { body: { flagged: false, note: '' } };
+      },
+
+      // Everything needed to review flagged questions, newest flag first.
+      async 'GET /api/flags'({ token }) {
+        const user = requireUser(token);
+        const rows = db.all(
+          `SELECT q.id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option,
+                  q.explanation, t.slug AS topic_slug, t.name AS topic_name, f.note, f.flagged_at,
+                  a.selected_option, a.is_correct
+             FROM flags f
+             JOIN questions q ON q.id = f.question_id
+             JOIN topics t    ON t.id = q.topic_id
+             LEFT JOIN answers a ON a.question_id = q.id AND a.user_id = f.user_id
+            WHERE f.user_id = ?
+            ORDER BY f.flagged_at DESC, f.id DESC`,
+          [user.id]
+        );
+        return {
+          body: {
+            questions: rows.map((r) => ({
+              id: Number(r.id),
+              stem: r.stem,
+              options: OPTIONS.map((k) => ({ key: k, text: r['option_' + k.toLowerCase()] })),
+              correctOption: r.correct_option,
+              explanation: r.explanation,
+              topic: { slug: r.topic_slug, name: r.topic_name },
+              note: r.note,
+              flaggedAt: r.flagged_at,
+              answer: r.selected_option ? { selected: r.selected_option, correct: !!Number(r.is_correct) } : null,
+            })),
+          },
         };
       },
 

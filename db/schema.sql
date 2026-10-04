@@ -47,3 +47,14 @@ CREATE TABLE IF NOT EXISTS answers (
   UNIQUE (user_id, question_id)
 );
 CREATE INDEX IF NOT EXISTS idx_answers_user ON answers(user_id);
+
+-- Questions a user has flagged for review, with an optional note.
+CREATE TABLE IF NOT EXISTS flags (
+  id          INTEGER PRIMARY KEY,
+  user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  note        TEXT NOT NULL DEFAULT '',
+  flagged_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (user_id, question_id)
+);
+CREATE INDEX IF NOT EXISTS idx_flags_user ON flags(user_id);
