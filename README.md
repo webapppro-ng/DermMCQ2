@@ -28,6 +28,7 @@ The database is created and seeded from `db/questions.json` on first start.
 | `sessions`  | Login tokens (HTTP-only cookie, 30 days) |
 | `answers`   | One row per user per question: selected option and whether it was correct |
 | `flags`     | Questions a user has flagged for review, with an optional note |
+| `redo_attempts` | Latest re-attempt at each question a user first answered incorrectly |
 
 ## Question bank
 
@@ -37,7 +38,11 @@ grouped into the 15 topics.
 
 Any question can be flagged for review, before or after answering, with an optional note. The main topics
 page shows how many questions are flagged and opens a reviewer that steps through them one at a time
-(Previous/Next or the arrow keys), revealing the answer and explanation. Each question's `source` field records where it came from in the document
+(Previous/Next or the arrow keys), revealing the answer and explanation.
+
+The topics page also has a "Redo incorrect answers" option. It serves the questions a user got wrong, from all
+topics or one topic. A question leaves the list once it is answered correctly; answered wrongly again, it
+moves to the back of the queue. The first attempt stays the recorded score on the Performance page. Each question's `source` field records where it came from in the document
 (`PQ.12` = practice question 12, `P1.5` / `P2.5` = question 5 of paper 1 / paper 2). Explanations store
 one point per line and are shown as a bulleted list.
 
@@ -88,6 +93,8 @@ its explanation changes.
 | PUT  | `/api/flags/:questionId` | Flag a question for review, or update its note: `{note?}` |
 | DELETE | `/api/flags/:questionId` | Remove a flag |
 | GET  | `/api/flags` | Flagged questions with answer, explanation, note and the user's own answer, newest first |
+| GET  | `/api/redo/:scope/next` | Next incorrectly answered question to redo; `scope` is `all` or a topic slug |
+| POST | `/api/redo/answer` | `{questionId, selected}` → correctness, explanation and the updated redo counts |
 
 All routes live in `src/core.js`, which is written against a small SQL adapter so the same code runs on
 the server and in the browser prototype.

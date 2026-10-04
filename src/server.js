@@ -69,6 +69,7 @@ server.all('/api/*splat', async (req, res, next) => {
     } else if (out.token === null) {
       res.clearCookie(COOKIE);
     }
+    res.set('Cache-Control', 'no-store'); // API responses are per-user and change after every answer
     res.status(out.status).json(out.body);
   } catch (err) {
     next(err);

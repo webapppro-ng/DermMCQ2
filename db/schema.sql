@@ -58,3 +58,16 @@ CREATE TABLE IF NOT EXISTS flags (
   UNIQUE (user_id, question_id)
 );
 CREATE INDEX IF NOT EXISTS idx_flags_user ON flags(user_id);
+
+-- Latest re-attempt at a question first answered incorrectly. The first attempt in `answers` stays the
+-- recorded score; a question leaves the redo list once its latest re-attempt is correct.
+CREATE TABLE IF NOT EXISTS redo_attempts (
+  id              INTEGER PRIMARY KEY,
+  user_id         INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  question_id     INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  selected_option TEXT NOT NULL CHECK (selected_option IN ('A','B','C','D','E')),
+  is_correct      INTEGER NOT NULL CHECK (is_correct IN (0,1)),
+  attempted_at    TEXT NOT NULL,
+  UNIQUE (user_id, question_id)
+);
+CREATE INDEX IF NOT EXISTS idx_redo_user ON redo_attempts(user_id);

@@ -77,6 +77,7 @@
         if (!keep.has(Number(row.id))) {
           db.run('DELETE FROM answers WHERE question_id = ?', [row.id]);
           db.run('DELETE FROM flags WHERE question_id = ?', [row.id]);
+          db.run('DELETE FROM redo_attempts WHERE question_id = ?', [row.id]);
           db.run('DELETE FROM questions WHERE id = ?', [row.id]);
         }
       }
@@ -116,6 +117,29 @@
       const user = userFromToken(token);
       if (!user) throw new HttpError(401, 'Please log in to continue.');
       return user;
+    }
+
+    // Questions first answered incorrectly whose latest re-attempt (if any) was not correct.
+    // Never-retried questions come first, then the ones retried longest ago, so a question
+    // answered wrongly again goes to the back of the queue.
+    const REDO_FROM = `
+        FROM answers a
+        JOIN questions q ON q.id = a.question_id
+        JOIN topics t    ON t.id = q.topic_id
+        LEFT JOIN redo_attempts r ON r.question_id = a.question_id AND r.user_id = a.user_id
+       WHERE a.user_id = ? AND a.is_correct = 0 AND COALESCE(r.is_correct, 0) = 0`;
+
+    function redoSummary(userId) {
+      const topics = db.all(
+        `SELECT t.slug, t.name, COUNT(*) AS remaining ${REDO_FROM} GROUP BY t.id ORDER BY t.sort_order`,
+        [userId]
+      ).map((r) => ({ slug: r.slug, name: r.name, remaining: Number(r.remaining) }));
+      const corrected = Number(db.get(
+        `SELECT COUNT(*) AS n FROM answers a JOIN redo_attempts r ON r.question_id = a.question_id AND r.user_id = a.user_id
+          WHERE a.user_id = ? AND a.is_correct = 0 AND r.is_correct = 1`,
+        [userId]
+      ).n);
+      return { remaining: topics.reduce((n, t) => n + t.remaining, 0), corrected, topics };
     }
 
     function flagState(userId, questionId) {
@@ -191,7 +215,62 @@
       async 'GET /api/topics'({ token }) {
         const user = requireUser(token);
         const flagged = Number(db.get('SELECT COUNT(*) AS n FROM flags WHERE user_id = ?', [user.id]).n);
-        return { body: { topics: topicStats(user.id), flagged } };
+        const { remaining, corrected } = redoSummary(user.id);
+        return { body: { topics: topicStats(user.id), flagged, redo: { remaining, corrected } } };
+      },
+
+      // Next question to redo, from all topics ('all') or one topic (its slug).
+      async 'GET /api/redo/:scope/next'({ token, params }) {
+        const user = requireUser(token);
+        const scope = params.scope === 'all' ? null : topicBySlug(params.scope);
+        const q = db.get(
+          `SELECT q.id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e,
+                  t.slug AS topic_slug, t.name AS topic_name, a.selected_option AS first_selected,
+                  r.selected_option AS last_selected
+             ${REDO_FROM} ${scope ? 'AND q.topic_id = ?' : ''}
+            ORDER BY COALESCE(r.attempted_at, '') ASC, a.answered_at ASC, q.id ASC
+            LIMIT 1`,
+          scope ? [user.id, scope.id] : [user.id]
+        );
+        return {
+          body: {
+            summary: redoSummary(user.id),
+            scope: scope ? { slug: scope.slug, name: scope.name } : null,
+            question: q
+              ? {
+                  id: Number(q.id),
+                  stem: q.stem,
+                  options: OPTIONS.map((k) => ({ key: k, text: q['option_' + k.toLowerCase()] })),
+                  topic: { slug: q.topic_slug, name: q.topic_name },
+                  previous: q.last_selected || q.first_selected,
+                  retried: !!q.last_selected,
+                  ...flagState(user.id, q.id),
+                }
+              : null,
+          },
+        };
+      },
+
+      async 'POST /api/redo/answer'({ token, body }) {
+        const user = requireUser(token);
+        const questionId = Number(body.questionId);
+        const selected = String(body.selected || '').toUpperCase();
+        if (!OPTIONS.includes(selected)) throw new HttpError(400, 'Choose one of the five answers.');
+        const first = db.get('SELECT is_correct FROM answers WHERE user_id = ? AND question_id = ?', [user.id, questionId]);
+        if (!first || Number(first.is_correct) === 1) throw new HttpError(409, 'That question is not on your redo list.');
+        const q = db.get('SELECT correct_option, explanation FROM questions WHERE id = ?', [questionId]);
+        const isCorrect = selected === q.correct_option ? 1 : 0;
+        const at = new Date().toISOString();
+        if (db.get('SELECT id FROM redo_attempts WHERE user_id = ? AND question_id = ?', [user.id, questionId])) {
+          db.run('UPDATE redo_attempts SET selected_option = ?, is_correct = ?, attempted_at = ? WHERE user_id = ? AND question_id = ?',
+            [selected, isCorrect, at, user.id, questionId]);
+        } else {
+          db.run('INSERT INTO redo_attempts (user_id, question_id, selected_option, is_correct, attempted_at) VALUES (?, ?, ?, ?, ?)',
+            [user.id, questionId, selected, isCorrect, at]);
+        }
+        return {
+          body: { correct: !!isCorrect, selected, correctOption: q.correct_option, explanation: q.explanation, summary: redoSummary(user.id) },
+        };
       },
 
       async 'GET /api/topics/:slug/next'({ token, params }) {
@@ -300,10 +379,12 @@
       async 'POST /api/topics/:slug/reset'({ token, params }) {
         const user = requireUser(token);
         const topic = topicBySlug(params.slug);
-        db.run(
-          'DELETE FROM answers WHERE user_id = ? AND question_id IN (SELECT id FROM questions WHERE topic_id = ?)',
-          [user.id, topic.id]
-        );
+        for (const table of ['answers', 'redo_attempts']) {
+          db.run(
+            `DELETE FROM ${table} WHERE user_id = ? AND question_id IN (SELECT id FROM questions WHERE topic_id = ?)`,
+            [user.id, topic.id]
+          );
+        }
         return { body: { ok: true } };
       },
 

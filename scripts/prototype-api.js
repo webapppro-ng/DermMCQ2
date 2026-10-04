@@ -101,6 +101,11 @@
         db.run('INSERT OR IGNORE INTO answers (user_id, question_id, selected_option, is_correct, answered_at) VALUES (?, ?, ?, ?, ?)',
           [userId, keyToId[k], a.s, a.c ? 1 : 0, String(a.at || '')]);
       }
+      for (const [k, a] of Object.entries(savedDoc.redo || {})) {
+        if (!keyToId[k] || !/^[A-E]$/.test(a.s)) continue;
+        db.run('INSERT OR IGNORE INTO redo_attempts (user_id, question_id, selected_option, is_correct, attempted_at) VALUES (?, ?, ?, ?, ?)',
+          [userId, keyToId[k], a.s, a.c ? 1 : 0, String(a.at || '')]);
+      }
       for (const [k, f] of Object.entries(savedDoc.flags || {})) {
         if (!keyToId[k]) continue;
         db.run('INSERT OR IGNORE INTO flags (user_id, question_id, note, flagged_at) VALUES (?, ?, ?, ?)',
@@ -117,8 +122,12 @@
         for (const r of db.all('SELECT question_id, note, flagged_at FROM flags WHERE user_id = ?', [userId])) {
           flags[idToKey[r.question_id]] = { n: r.note, at: r.flagged_at };
         }
+        const redo = {};
+        for (const r of db.all('SELECT question_id, selected_option, is_correct, attempted_at FROM redo_attempts WHERE user_id = ?', [userId])) {
+          redo[idToKey[r.question_id]] = { s: r.selected_option, c: r.is_correct, at: r.attempted_at };
+        }
         chain = chain
-          .then(() => progressRef.set({ answers, flags, updatedAt: new Date().toISOString() }))
+          .then(() => progressRef.set({ answers, flags, redo, updatedAt: new Date().toISOString() }))
           .then(() => setNote('Your progress is saved to your claude.ai account and follows you across devices.'))
           .catch(() => setNote('Your answers and flags could not be saved, so they will be lost when you leave. Ask the owner of this page for Contributor access.'));
         return chain;

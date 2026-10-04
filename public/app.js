@@ -3,7 +3,8 @@
 
   const app = document.getElementById('app');
   const nav = document.getElementById('nav');
-  const state = { user: null, view: 'auth', topic: null, authTab: 'login', flags: [], flagIndex: 0, revealed: new Set() };
+  const state = { user: null, view: 'auth', topic: null, authTab: 'login', flags: [], flagIndex: 0, revealed: new Set(), redoScope: 'all' };
+  const REDO_ICON = '<svg class="flag-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 3.5v3.5H9.5M12.6 7A5 5 0 1 0 13 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   const FLAG_ICON = '<svg class="flag-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 15V1.5M3 2h9l-2 3.5L12 9H3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 
   const esc = (s) =>
@@ -50,6 +51,7 @@
     if (state.view === 'quiz') return renderQuiz();
     if (state.view === 'performance') return renderPerformance();
     if (state.view === 'flagged') return renderFlagged();
+    if (state.view === 'redo') return renderRedo();
   }
 
   /* ---------- Auth ---------- */
@@ -117,7 +119,7 @@
   }
 
   async function renderTopics() {
-    const { topics, flagged } = await api('GET', '/api/topics');
+    const { topics, flagged, redo } = await api('GET', '/api/topics');
     const answered = topics.reduce((n, t) => n + t.answered, 0);
     const total = topics.reduce((n, t) => n + t.total, 0);
     const correct = topics.reduce((n, t) => n + t.correct, 0);
@@ -131,6 +133,20 @@
         <div><strong class="num">${answered}<span class="muted" style="font-size:1rem"> / ${total}</span></strong><span>questions answered</span></div>
         <div><strong class="num">${pctText(pct(correct, answered))}</strong><span>correct overall</span></div>
       </div>
+      <div class="dash-panels">
+      ${redo.remaining
+        ? `<button class="flag-panel panel-redo" type="button" id="open-redo">
+             ${REDO_ICON}
+             <span class="flag-panel-text"><strong>Redo incorrect answers</strong>
+               <span class="num">${redo.remaining} question${redo.remaining === 1 ? '' : 's'} to try again${redo.corrected ? ` · ${redo.corrected} corrected so far` : ''}</span></span>
+             <span class="flag-panel-go">Start →</span>
+           </button>`
+        : `<div class="flag-panel panel-redo is-empty">${REDO_ICON}
+             <span class="flag-panel-text"><strong>Redo incorrect answers</strong>
+               <span>${redo.corrected
+                 ? `All ${redo.corrected} incorrect answer${redo.corrected === 1 ? '' : 's'} corrected. New mistakes will be collected here.`
+                 : 'Questions you answer incorrectly are collected here so you can try them again.'}</span></span>
+           </div>`}
       ${flagged
         ? `<button class="flag-panel" type="button" id="open-flags">
              ${FLAG_ICON}
@@ -142,6 +158,7 @@
              <span class="flag-panel-text"><strong>Flagged for review</strong>
                <span>Use the “Flag for review” button on any question and it will be collected here.</span></span>
            </div>`}
+      </div>
       <ul class="topic-list">
         ${topics.map((t) => `
           <li>
@@ -156,6 +173,8 @@
     app.querySelectorAll('.topic').forEach((b) => (b.onclick = () => go('quiz', b.dataset.slug)));
     const open = document.getElementById('open-flags');
     if (open) open.onclick = () => { state.flagIndex = 0; go('flagged'); };
+    const openRedo = document.getElementById('open-redo');
+    if (openRedo) openRedo.onclick = () => { state.redoScope = 'all'; go('redo'); };
   }
 
   /* ---------- Quiz ---------- */
@@ -212,10 +231,24 @@
       return;
     }
 
-    let selected = null;
     app.innerHTML = `
       <section class="quiz">
         ${head(`Question ${progress.answered + 1} of ${progress.total}`)}
+        ${questionHtml(question)}
+      </section>`;
+    document.getElementById('back').onclick = () => go('topics');
+    mountQuestion(question, {
+      submit: (selected) => api('POST', '/api/answer', { questionId: question.id, selected }),
+      verdict: (r) => (r.correct ? 'Correct' : `Incorrect. The answer is ${r.correctOption}.`),
+      nextLabel: () => (progress.answered + 1 >= progress.total ? 'Finish topic' : 'Next question'),
+      next: () => go('quiz'),
+    });
+  }
+
+  // Question body shared by topic practice and redo: stem, options, feedback, submit and flag controls.
+  function questionHtml(question, meta = '') {
+    return `
+        ${meta}
         <p class="stem">${esc(question.stem)}</p>
         <ul class="options" id="options">
           ${question.options.map((o) => `
@@ -228,10 +261,13 @@
           <button class="btn btn-primary" type="button" id="submit" disabled>Submit answer</button>
           ${flagControlHtml(question)}
         </div>
-        ${flagNoteHtml(question)}
-      </section>`;
-    document.getElementById('back').onclick = () => go('topics');
+        ${flagNoteHtml(question)}`;
+  }
+
+  // Wires option selection and submission. opts.submit(selected) -> result with correct/selected/correctOption/explanation.
+  function mountQuestion(question, opts) {
     wireFlag(question);
+    let selected = null;
     const buttons = [...app.querySelectorAll('.option')];
     const submit = document.getElementById('submit');
     buttons.forEach((b) => {
@@ -245,7 +281,7 @@
       submit.disabled = true;
       let result;
       try {
-        result = await api('POST', '/api/answer', { questionId: question.id, selected });
+        result = await opts.submit(selected);
       } catch (err) {
         document.getElementById('feedback').innerHTML = `<p class="error">${esc(err.message)}</p>`;
         submit.disabled = false;
@@ -260,15 +296,80 @@
       });
       document.getElementById('feedback').innerHTML = `
         <div class="explanation">
-          <p class="verdict ${result.correct ? 'ok' : 'bad'}">${result.correct ? 'Correct' : `Incorrect. The answer is ${result.correctOption}.`}</p>
+          <p class="verdict ${result.correct ? 'ok' : 'bad'}">${esc(opts.verdict(result))}</p>
           ${explanationHtml(result.explanation)}
         </div>`;
-      const isLast = progress.answered + 1 >= progress.total;
-      submit.textContent = isLast ? 'Finish topic' : 'Next question';
+      submit.textContent = opts.nextLabel(result);
       submit.disabled = false;
-      submit.onclick = () => go('quiz');
+      submit.onclick = opts.next;
       submit.focus();
     };
+  }
+
+  /* ---------- Redo incorrect answers ---------- */
+  async function renderRedo() {
+    const scope = state.redoScope || 'all';
+    const { summary, question } = await api('GET', `/api/redo/${encodeURIComponent(scope)}/next`);
+    const inScope = scope === 'all' ? summary.remaining : (summary.topics.find((t) => t.slug === scope) || { remaining: 0 }).remaining;
+    const scopeOptions = [{ slug: 'all', name: 'All topics', remaining: summary.remaining }, ...summary.topics];
+    if (scope !== 'all' && !summary.topics.some((t) => t.slug === scope)) scopeOptions.push({ slug: scope, name: 'This topic', remaining: 0 });
+    const head = `
+      <div>
+        <button class="back" type="button" id="back">← All topics</button>
+        <div class="quiz-head">
+          <h2>Redo incorrect answers</h2>
+          <span class="eyebrow num">${inScope} to go</span>
+        </div>
+        <div class="row redo-scope">
+          <label for="redo-scope-select">Questions from</label>
+          <select id="redo-scope-select">
+            ${scopeOptions.map((t) => `<option value="${esc(t.slug)}"${t.slug === scope ? ' selected' : ''}>${esc(t.name)} (${t.remaining})</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+    const wire = () => {
+      document.getElementById('back').onclick = () => go('topics');
+      document.getElementById('redo-scope-select').onchange = (e) => { state.redoScope = e.target.value; go('redo'); };
+    };
+
+    if (!question) {
+      const others = scope !== 'all' && summary.remaining > 0;
+      app.innerHTML = `
+        <section class="quiz">
+          ${head}
+          <div class="card done">
+            <h2>${summary.corrected ? 'Nothing left to redo' : 'No incorrect answers to redo'}</h2>
+            <p class="lede">${others
+              ? `You have corrected everything in this topic. ${summary.remaining} question${summary.remaining === 1 ? '' : 's'} from other topics still need another try.`
+              : 'Every question you answered incorrectly has now been answered correctly. Your original scores on the Performance page are unchanged.'}</p>
+            <div class="row" style="margin-top:16px">
+              ${others ? `<button class="btn btn-primary" type="button" id="redo-all">Redo all topics (${summary.remaining})</button>` : ''}
+              <button class="btn ${others ? 'btn-ghost' : 'btn-primary'}" type="button" id="to-topics">Back to topics</button>
+            </div>
+          </div>
+        </section>`;
+      wire();
+      document.getElementById('to-topics').onclick = () => go('topics');
+      const all = document.getElementById('redo-all');
+      if (all) all.onclick = () => { state.redoScope = 'all'; go('redo'); };
+      return;
+    }
+
+    const meta = `<div class="row review-meta"><span class="eyebrow">${esc(question.topic.name)}</span>
+      <span class="chip chip-bad">${question.retried ? 'Last try' : 'First try'}: answered ${question.previous}</span></div>`;
+    app.innerHTML = `<section class="quiz">${head}${questionHtml(question, meta)}</section>`;
+    wire();
+    mountQuestion(question, {
+      submit: (selected) => api('POST', '/api/redo/answer', { questionId: question.id, selected }),
+      verdict: (r) => (r.correct
+        ? 'Correct. This question has been removed from your redo list.'
+        : `Incorrect. The answer is ${r.correctOption}. It stays on your list and will come round again.`),
+      nextLabel: (r) => {
+        const left = scope === 'all' ? r.summary.remaining : (r.summary.topics.find((t) => t.slug === scope) || { remaining: 0 }).remaining;
+        return left ? 'Next question' : 'Finish';
+      },
+      next: () => go('redo'),
+    });
   }
 
   /* ---------- Flags ---------- */

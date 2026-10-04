@@ -42,6 +42,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -261,4 +262,23 @@ div.option { cursor: default; }
 @media (max-width: 720px) {
   .review-nav .spacer { display: none; }
   .review-nav .btn-flag { width: 100%; }
+}
+
+/* Dashboard panels: redo incorrect answers + flagged for review */
+.dash-panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dash-panels > * { min-width: 0; }
+.panel-redo { background: var(--accent-soft); }
+.panel-redo > .flag-icon { color: var(--accent); }
+.panel-redo:hover { border-color: var(--accent); }
+.panel-redo .flag-panel-go { color: var(--accent); }
+.panel-redo.is-empty { background: transparent; }
+.panel-redo.is-empty > .flag-icon { color: var(--muted); }
+.redo-scope { margin-top: 10px; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+.redo-scope select {
+  font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; max-width: 100%;
+}
+.redo-scope select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+@media (max-width: 720px) {
+  .dash-panels { grid-template-columns: 1fr; }
 }
