@@ -18,7 +18,7 @@
   const toB64 = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
   const fromB64 = (b) => Uint8Array.from(atob(b), (c) => c.charCodeAt(0));
   const hex = (buf) => [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, '0')).join('');
-  // Stable key for a question that survives reordering of the question file (FNV-1a of the stem).
+  // Stable key for a question that survives reordering of the question file (FNV-1a of stem + first option).
   const stemKey = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return 'q' + h.toString(16).padStart(8, '0'); };
 
   async function pbkdf2(pw, salt) {
@@ -89,8 +89,8 @@
       token = SHARED_TOKEN;
 
       const keyToId = {}, idToKey = {};
-      for (const q of db.all('SELECT id, stem FROM questions')) {
-        const k = stemKey(q.stem);
+      for (const q of db.all('SELECT id, stem, option_a FROM questions')) {
+        const k = stemKey(q.stem + '\n' + q.option_a);
         keyToId[k] = q.id; idToKey[q.id] = k;
       }
       const progressRef = shared.db.doc('data/users/' + shared.uid + '/progress');

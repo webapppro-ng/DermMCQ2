@@ -149,6 +149,9 @@ h2 { font-size: 1.35rem; }
 .pill-new { background: var(--accent-soft); color: var(--accent); }
 .pill-going { background: var(--eosin-soft); color: var(--eosin); }
 .pill-done { background: var(--ok-soft); color: var(--ok); }
+.pill-empty { background: transparent; color: var(--muted); border: 1px dashed var(--line); }
+.topic:disabled { cursor: default; opacity: 0.6; }
+.topic:disabled:hover { border-color: var(--line); }
 .bar { grid-column: 1 / -1; height: 4px; background: var(--track); border-radius: 99px; overflow: hidden; margin-top: 6px; }
 .bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 
@@ -185,6 +188,7 @@ h2 { font-size: 1.35rem; }
 .verdict.bad { color: var(--bad); }
 .explanation { border-left: 3px solid var(--eosin); background: var(--surface); padding: 14px 18px; border-radius: 0 var(--r) var(--r) 0; }
 .explanation p { margin: 0; }
+.explanation .points { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
 .done { text-align: left; }
 
 /* Performance */

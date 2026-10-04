@@ -31,15 +31,17 @@
     }
   }
 
-  // Brings the database in line with the question file. Safe to run on every start:
-  // topics are added, renamed and reordered; new questions are inserted; questions are matched by
-  // stem and moved to their current topic (keeping their ids, so users' answers survive);
-  // topics left with no questions are removed. Questions missing from the file are kept.
+  // Makes the database match the question file. Safe to run on every start:
+  // topics are added, renamed and reordered, and topics no longer in the file are removed;
+  // questions are matched by stem and first option, so an existing question keeps its id (and users' answers to it)
+  // while its topic, options, answer and explanation are updated; new questions are inserted;
+  // questions no longer in the file are deleted, together with users' answers to them.
   function seed(db, schemaSql, topicsData) {
     db.exec(schemaSql);
     let added = 0;
     db.exec('BEGIN');
     try {
+      const keep = new Set();
       topicsData.forEach((t, i) => {
         const found = db.get('SELECT id FROM topics WHERE slug = ?', [t.slug]);
         const topicId = found
@@ -49,21 +51,36 @@
         for (const q of t.questions) {
           if (q.options.length !== 5) throw new Error(`Question needs 5 options: ${q.stem}`);
           if (!OPTIONS.includes(q.answer)) throw new Error(`Bad answer letter: ${q.stem}`);
-          const existing = db.get('SELECT id FROM questions WHERE stem = ?', [q.stem]);
+          // A question is identified by its stem plus first option (some stems, e.g. "Which is false?", repeat).
+          const existing = db.get('SELECT id FROM questions WHERE stem = ? AND option_a = ?', [q.stem, q.options[0]]);
+          const values = [topicId, ...q.options, q.answer, q.explanation];
           if (existing) {
-            db.run('UPDATE questions SET topic_id = ? WHERE id = ?', [topicId, existing.id]);
+            db.run(
+              `UPDATE questions SET topic_id = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, option_e = ?,
+                      correct_option = ?, explanation = ? WHERE id = ?`,
+              [...values, existing.id]
+            );
+            keep.add(Number(existing.id));
             continue;
           }
-          db.run(
+          const { lastInsertRowid } = db.run(
             `INSERT INTO questions
-               (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation)
+               (topic_id, option_a, option_b, option_c, option_d, option_e, correct_option, explanation, stem)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [topicId, q.stem, ...q.options, q.answer, q.explanation]
+            [...values, q.stem]
           );
+          keep.add(Number(lastInsertRowid));
           added++;
         }
       });
-      db.run('DELETE FROM topics WHERE id NOT IN (SELECT DISTINCT topic_id FROM questions)', []);
+      for (const row of db.all('SELECT id FROM questions', [])) {
+        if (!keep.has(Number(row.id))) {
+          db.run('DELETE FROM answers WHERE question_id = ?', [row.id]);
+          db.run('DELETE FROM questions WHERE id = ?', [row.id]);
+        }
+      }
+      const slugs = topicsData.map((t) => t.slug);
+      db.run(`DELETE FROM topics WHERE slug NOT IN (${slugs.map(() => '?').join(', ')})`, slugs);
       db.exec('COMMIT');
     } catch (err) {
       db.exec('ROLLBACK');

@@ -108,6 +108,7 @@
 
   /* ---------- Topics ---------- */
   function pill(t) {
+    if (t.total === 0) return `<span class="topic-pill pill-empty">No questions yet</span>`;
     if (t.answered === 0) return `<span class="topic-pill pill-new">${t.total} new</span>`;
     if (t.answered >= t.total) return `<span class="topic-pill pill-done">Done · ${pctText(pct(t.correct, t.answered))}</span>`;
     return `<span class="topic-pill pill-going">${t.total - t.answered} left</span>`;
@@ -131,7 +132,7 @@
       <ul class="topic-list">
         ${topics.map((t) => `
           <li>
-            <button class="topic" type="button" data-slug="${esc(t.slug)}">
+            <button class="topic" type="button" data-slug="${esc(t.slug)}"${t.total ? '' : ' disabled'}>
               <span class="topic-name">${esc(t.name)}</span>
               ${pill(t)}
               <span class="topic-meta num">${t.answered} of ${t.total} answered${t.answered ? ` · ${pctText(pct(t.correct, t.answered))} correct` : ''}</span>
@@ -143,6 +144,13 @@
   }
 
   /* ---------- Quiz ---------- */
+  // Explanations are stored one point per line; show several points as a list.
+  function explanationHtml(text) {
+    const points = String(text).split('\n').map((s) => s.trim()).filter(Boolean);
+    if (points.length < 2) return `<p>${esc(points[0] || '')}</p>`;
+    return `<ul class="points">${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>`;
+  }
+
   async function renderQuiz() {
     const data = await api('GET', `/api/topics/${encodeURIComponent(state.topic)}/next`);
     const { topic, progress, question } = data;
@@ -153,7 +161,7 @@
           <h2>${esc(topic.name)}</h2>
           <span class="eyebrow num">${label}</span>
         </div>
-        <div class="bar" aria-hidden="true" style="margin-top:10px"><i style="width:${(progress.answered / progress.total) * 100}%"></i></div>
+        <div class="bar" aria-hidden="true" style="margin-top:10px"><i style="width:${progress.total ? (progress.answered / progress.total) * 100 : 0}%"></i></div>
       </div>`;
 
     if (!question) {
@@ -235,7 +243,7 @@
       document.getElementById('feedback').innerHTML = `
         <div class="explanation">
           <p class="verdict ${result.correct ? 'ok' : 'bad'}">${result.correct ? 'Correct' : `Incorrect. The answer is ${result.correctOption}.`}</p>
-          <p>${esc(result.explanation)}</p>
+          ${explanationHtml(result.explanation)}
         </div>`;
       const isLast = progress.answered + 1 >= progress.total;
       submit.textContent = isLast ? 'Finish topic' : 'Next question';
@@ -252,6 +260,7 @@
     const done = topics.filter((t) => t.answered >= t.total && t.total > 0).length;
     const scoreCell = (t) => {
       const v = pct(t.correct, t.answered);
+      if (!t.total) return '<span class="muted">No questions yet</span>';
       if (v === null) return '<span class="muted">Not started</span>';
       const cls = v >= 70 ? 'score-hi' : v >= 50 ? 'score-mid' : 'score-lo';
       return `<span class="score"><span class="num">${v}%</span><span class="score-bar" aria-hidden="true"><i class="${cls}" style="width:${v}%"></i></span></span>`;

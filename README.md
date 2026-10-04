@@ -28,11 +28,24 @@ The database is created and seeded from `db/questions.json` on first start.
 | `sessions`  | Login tokens (HTTP-only cookie, 30 days) |
 | `answers`   | One row per user per question: selected option and whether it was correct |
 
-## Adding questions
+## Question bank
 
-Add entries to `db/questions.json` under the right topic (exactly five options, `answer` is a letter A–E),
-then restart the server. On start the database is synced with the file: new topics and questions are added,
-and questions moved between topics keep their users' answers.
+`db/questions.json` holds 507 single-best-answer questions imported from the author's Word document
+(307 practice questions plus two 100-question papers), each with its correct answer and explanation,
+grouped into the 15 topics. Each question's `source` field records where it came from in the document
+(`PQ.12` = practice question 12, `P1.5` / `P2.5` = question 5 of paper 1 / paper 2). Explanations store
+one point per line and are shown as a bulleted list.
+
+Psychodermatology and Dressings & Wound Care currently have no questions; they appear in the app as
+"No questions yet" until questions are added.
+
+## Adding or editing questions
+
+Edit `db/questions.json` (exactly five options, `answer` is a letter A–E) and restart the server. On start
+the database is synced with the file: new topics and questions are added, edited questions are updated in
+place, and questions removed from the file are deleted along with users' answers to them. A question is
+identified by its stem plus its first option, so users keep their answers when a question moves topic or
+its explanation changes.
 
 ## API
 
