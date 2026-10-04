@@ -1,0 +1,500 @@
+[
+  {
+    "slug": "cutaneous-allergy",
+    "name": "Cutaneous Allergy",
+    "questions": [
+      {
+        "stem": "A 32-year-old woman develops itchy eczema beneath the metal stud of her jeans and under her watch buckle. Which allergen is she most likely to react to on baseline patch testing?",
+        "options": ["Nickel sulfate", "Fragrance mix I", "Methylisothiazolinone", "Potassium dichromate", "Colophonium"],
+        "answer": "A",
+        "explanation": "Nickel is the most common contact allergen in European baseline series, particularly in women, and typically presents at sites of contact with jewellery, jeans studs, buckles and watch backs."
+      },
+      {
+        "stem": "A hairdresser presents with hand dermatitis. She regularly applies permanent (oxidative) hair dyes. Which allergen is the most likely cause?",
+        "options": ["Ammonium persulfate", "p-Phenylenediamine (PPD)", "Glyceryl thioglycolate", "Cocamidopropyl betaine", "Wool alcohols (lanolin)"],
+        "answer": "B",
+        "explanation": "PPD is the principal allergen in permanent oxidative hair dyes. Ammonium persulfate is found in bleaches, and glyceryl thioglycolate in acid permanent-wave solutions."
+      },
+      {
+        "stem": "A construction worker has chronic hand dermatitis that improves when he is on holiday. He handles wet cement daily. Which allergen is most likely responsible?",
+        "options": ["Cobalt chloride", "Thiuram mix", "Potassium dichromate", "Epoxy resin", "Formaldehyde"],
+        "answer": "C",
+        "explanation": "Hexavalent chromium in cement is a classic occupational allergen. Adding ferrous sulfate to cement reduces chromate to the less sensitising trivalent form, which has lowered the incidence of cement dermatitis in Europe."
+      },
+      {
+        "stem": "A theatre nurse with immediate-type (type I) latex allergy is at increased risk of reacting to which food because of cross-reacting proteins (latex–fruit syndrome)?",
+        "options": ["Strawberry", "Apple", "Peanut", "Banana", "Shellfish"],
+        "answer": "D",
+        "explanation": "Latex–fruit syndrome describes cross-reactivity between Hevea brasiliensis latex proteins and foods such as banana, avocado, kiwi and chestnut."
+      }
+    ]
+  },
+  {
+    "slug": "dermatopathology",
+    "name": "Dermatopathology",
+    "questions": [
+      {
+        "stem": "A skin biopsy shows wedge-shaped hypergranulosis, saw-tooth rete ridges, colloid (Civatte) bodies and a dense band-like lymphocytic infiltrate at the dermo-epidermal junction. What is the most likely diagnosis?",
+        "options": ["Psoriasis", "Lichen planus", "Discoid lupus erythematosus", "Pityriasis rosea", "Lichen simplex chronicus"],
+        "answer": "B",
+        "explanation": "These are the classic features of lichen planus, a lichenoid interface dermatitis. Civatte bodies are apoptotic keratinocytes at the junction."
+      },
+      {
+        "stem": "Eosinophilic, PAS-positive globules (Kamino bodies) within the epidermis of a symmetrical melanocytic lesion composed of large epithelioid and spindle cells are characteristic of which lesion?",
+        "options": ["Blue naevus", "Lentigo maligna", "Spitz naevus", "Halo naevus", "Dysplastic naevus"],
+        "answer": "C",
+        "explanation": "Kamino bodies are coalescent eosinophilic globules found at the dermo-epidermal junction of Spitz naevi. They are less common in melanoma, so they support a benign Spitz lesion."
+      },
+      {
+        "stem": "Collections of neutrophils within a parakeratotic stratum corneum (Munro microabscesses) are a characteristic finding in which condition?",
+        "options": ["Psoriasis", "Pemphigus foliaceus", "Dermatitis herpetiformis", "Seborrhoeic keratosis", "Erythema multiforme"],
+        "answer": "A",
+        "explanation": "Munro microabscesses (in the stratum corneum) and spongiform pustules of Kogoj (in the spinous layer) are typical of psoriasis."
+      },
+      {
+        "stem": "Direct immunofluorescence of perilesional skin shows linear IgG and C3 along the basement membrane zone. On salt-split skin, the antibodies bind to the roof (epidermal side) of the split. What is the most likely diagnosis?",
+        "options": ["Epidermolysis bullosa acquisita", "Bullous systemic lupus erythematosus", "Pemphigus vulgaris", "Bullous pemphigoid", "Dermatitis herpetiformis"],
+        "answer": "D",
+        "explanation": "Bullous pemphigoid antibodies target BP180 and BP230 in the hemidesmosome, so they bind the epidermal roof on salt-split skin. EBA and bullous SLE (anti-type VII collagen) bind the dermal floor."
+      }
+    ]
+  },
+  {
+    "slug": "dermoscopy",
+    "name": "Dermoscopy",
+    "questions": [
+      {
+        "stem": "A pearly papule on the nose shows arborising telangiectasia, leaf-like areas and large blue-grey ovoid nests on dermoscopy. There is no pigment network. What is the most likely diagnosis?",
+        "options": ["Intradermal naevus", "Basal cell carcinoma", "Sebaceous hyperplasia", "Melanoma", "Dermatofibroma"],
+        "answer": "B",
+        "explanation": "Arborising vessels, leaf-like areas, spoke-wheel areas and blue-grey ovoid nests without a pigment network are the classic dermoscopic criteria for pigmented basal cell carcinoma."
+      },
+      {
+        "stem": "A 'stuck-on' pigmented lesion on the back shows multiple milia-like cysts and comedo-like openings on dermoscopy. What is the most likely diagnosis?",
+        "options": ["Seborrhoeic keratosis", "Melanoma", "Blue naevus", "Angioma", "Solar lentigo"],
+        "answer": "A",
+        "explanation": "Milia-like cysts, comedo-like openings, fissures and ridges ('brain-like' pattern) and sharp demarcation are hallmarks of seborrhoeic keratosis."
+      },
+      {
+        "stem": "A firm papule on the lower leg dimples when squeezed. Dermoscopy shows a central white scar-like patch with a delicate peripheral pigment network. What is the most likely diagnosis?",
+        "options": ["Spitz naevus", "Basal cell carcinoma", "Dermatofibroma", "Amelanotic melanoma", "Clear cell acanthoma"],
+        "answer": "C",
+        "explanation": "A central white patch surrounded by a fine peripheral pigment network is the classic dermoscopic pattern of dermatofibroma, matching the clinical dimple sign."
+      },
+      {
+        "stem": "On dermoscopy of a pigmented lesion on the sole, which pattern is most suggestive of acral melanoma?",
+        "options": ["Parallel furrow pattern", "Lattice-like pattern", "Fibrillar pattern", "Parallel ridge pattern", "Globular pattern"],
+        "answer": "D",
+        "explanation": "Pigmentation along the ridges (where the eccrine ducts open) is highly specific for acral melanoma. Parallel furrow, lattice-like and fibrillar patterns are typical of benign acral naevi."
+      }
+    ]
+  },
+  {
+    "slug": "dressings-wound-care",
+    "name": "Dressings & Wound Care",
+    "questions": [
+      {
+        "stem": "A venous leg ulcer is producing a large volume of exudate. Which primary dressing is most appropriate?",
+        "options": ["Hydrogel", "Vapour-permeable film", "Calcium alginate", "Thin hydrocolloid", "Paraffin gauze"],
+        "answer": "C",
+        "explanation": "Alginates are highly absorbent and form a gel on contact with exudate, so they suit moderately to heavily exuding wounds. Hydrogels donate moisture and are for dry wounds."
+      },
+      {
+        "stem": "A dry wound covered in yellow slough needs autolytic debridement. Which dressing is most suitable?",
+        "options": ["Hydrogel", "Calcium alginate", "Foam dressing", "Hydrofibre", "Dry gauze"],
+        "answer": "A",
+        "explanation": "Hydrogels rehydrate dry slough and necrotic tissue, which promotes autolytic debridement. Absorbent dressings would dry the wound further."
+      },
+      {
+        "stem": "Before applying full (approximately 40 mmHg) compression bandaging for a venous leg ulcer, what is the minimum ankle–brachial pressure index (ABPI) generally considered safe?",
+        "options": ["0.5", "0.6", "0.8", "1.0", "1.3"],
+        "answer": "C",
+        "explanation": "Full compression is generally considered safe with an ABPI of 0.8 or above (and up to about 1.3). Lower values suggest significant arterial disease. Values above 1.3 suggest calcified, incompressible vessels, which make the reading unreliable."
+      },
+      {
+        "stem": "Which antimicrobial dressing should be avoided in a patient with thyroid disease?",
+        "options": ["Silver-containing foam", "Medical-grade honey", "Polyhexamethylene biguanide (PHMB) gauze", "Dialkylcarbamoyl chloride (DACC) dressing", "Cadexomer iodine"],
+        "answer": "E",
+        "explanation": "Iodine can be absorbed systemically, especially from large wounds, and may disturb thyroid function. Iodine dressings are cautioned or contraindicated in thyroid disorders, pregnancy and breastfeeding."
+      }
+    ]
+  },
+  {
+    "slug": "formulary-systemic-therapy",
+    "name": "Formulary & Systemic Therapy",
+    "questions": [
+      {
+        "stem": "Before starting azathioprine for chronic actinic dermatitis, which enzyme activity should be measured to guide dosing and reduce the risk of myelosuppression?",
+        "options": ["Glucose-6-phosphate dehydrogenase", "Thiopurine methyltransferase (TPMT)", "Dihydrofolate reductase", "Xanthine oxidase", "Cytochrome P450 3A4"],
+        "answer": "B",
+        "explanation": "Low TPMT activity leads to accumulation of cytotoxic thioguanine nucleotides and severe myelosuppression. The azathioprine dose is adjusted, or the drug avoided, according to TPMT activity."
+      },
+      {
+        "stem": "A patient taking oral isotretinoin for acne should not be prescribed which drug at the same time, because of the risk of benign intracranial hypertension?",
+        "options": ["Doxycycline", "Trimethoprim", "Spironolactone", "Combined oral contraceptive", "Paracetamol"],
+        "answer": "A",
+        "explanation": "Both tetracyclines and retinoids can cause idiopathic intracranial hypertension, and the combination is contraindicated."
+      },
+      {
+        "stem": "A patient on weekly methotrexate for psoriasis develops a urinary tract infection. Which antibiotic should be avoided because of the risk of severe bone marrow suppression?",
+        "options": ["Nitrofurantoin", "Cefalexin", "Trimethoprim", "Fosfomycin", "Pivmecillinam"],
+        "answer": "C",
+        "explanation": "Trimethoprim (including co-trimoxazole) is an antifolate and greatly increases the risk of methotrexate-induced pancytopenia, which can be fatal."
+      },
+      {
+        "stem": "Which two parameters are most important to monitor routinely in a patient taking ciclosporin for severe atopic eczema?",
+        "options": ["Liver function and lipids", "Full blood count and ferritin", "Blood pressure and serum creatinine", "Blood glucose and HbA1c", "Thyroid function and calcium"],
+        "answer": "C",
+        "explanation": "The main dose-limiting toxicities of ciclosporin are nephrotoxicity and hypertension. A sustained rise in creatinine of more than 25% above baseline should prompt dose reduction."
+      }
+    ]
+  },
+  {
+    "slug": "general-dermatology",
+    "name": "General Dermatology",
+    "questions": [
+      {
+        "stem": "A 50-year-old man has painful oral erosions followed by flaccid blisters on the trunk, with a positive Nikolsky sign. Antibodies against which antigen predominate in the mucosal-dominant form of this disease?",
+        "options": ["Desmoglein 1", "Desmoglein 3", "BP180", "Type VII collagen", "Envoplakin"],
+        "answer": "B",
+        "explanation": "Mucosal-dominant pemphigus vulgaris is associated with anti-desmoglein 3 antibodies. Mucocutaneous disease has both anti-Dsg3 and anti-Dsg1, and pemphigus foliaceus has anti-Dsg1 alone."
+      },
+      {
+        "stem": "What is the most common identifiable cause of erythema nodosum in the UK?",
+        "options": ["Streptococcal infection", "Sarcoidosis", "Tuberculosis", "Oral contraceptive pill", "Inflammatory bowel disease"],
+        "answer": "A",
+        "explanation": "Many cases are idiopathic. When a cause is found, preceding streptococcal throat infection is the most common, followed by sarcoidosis, drugs, pregnancy and inflammatory bowel disease."
+      },
+      {
+        "stem": "A patient with intensely itchy grouped vesicles on the elbows, knees and buttocks has granular IgA in the dermal papillae on direct immunofluorescence. Which drug gives the most rapid symptom control?",
+        "options": ["Prednisolone", "Doxycycline", "Methotrexate", "Dapsone", "Hydroxychloroquine"],
+        "answer": "D",
+        "explanation": "In dermatitis herpetiformis, dapsone usually relieves itch within 48–72 hours. A strict gluten-free diet is the long-term treatment and lets the dapsone dose be reduced. Check G6PD before starting dapsone."
+      },
+      {
+        "stem": "A rapidly enlarging painful ulcer with an undermined violaceous edge develops on the leg after minor trauma. Which systemic disease is most commonly associated?",
+        "options": ["Diabetes mellitus", "Inflammatory bowel disease", "Hypothyroidism", "Chronic kidney disease", "Systemic sclerosis"],
+        "answer": "B",
+        "explanation": "Pyoderma gangrenosum shows pathergy and is associated with inflammatory bowel disease, inflammatory arthritis and haematological disorders such as monoclonal gammopathy and myeloid malignancy."
+      }
+    ]
+  },
+  {
+    "slug": "genito-urinary-oral-medicine",
+    "name": "Genito-urinary Disorders & Oral Medicine",
+    "questions": [
+      {
+        "stem": "A 60-year-old woman has vulval itch with white, atrophic, 'figure-of-eight' plaques around the vulva and perianal skin. What is the first-line treatment?",
+        "options": ["Topical tacrolimus 0.1%", "Clobetasol propionate 0.05% ointment", "Hydrocortisone 1% cream", "Topical oestrogen", "Imiquimod 5% cream"],
+        "answer": "B",
+        "explanation": "Ultrapotent topical corticosteroid (clobetasol propionate) is first-line for anogenital lichen sclerosus. Patients need long-term review because of the small risk of squamous cell carcinoma."
+      },
+      {
+        "stem": "A patient has asymptomatic, lacy white reticulate striae on both buccal mucosae. What is the most likely diagnosis?",
+        "options": ["Leukoplakia", "Pseudomembranous candidiasis", "Oral lichen planus", "White sponge naevus", "Frictional keratosis"],
+        "answer": "C",
+        "explanation": "Bilateral reticular white striae (Wickham striae) on the buccal mucosa are characteristic of oral lichen planus. Candidal plaques can be wiped off, and leukoplakia is a diagnosis of exclusion."
+      },
+      {
+        "stem": "An uncircumcised 65-year-old man has a well-demarcated, glistening, orange-red plaque on the glans with 'cayenne pepper' spotting. Biopsy shows a dense plasma cell infiltrate. What is the most effective definitive treatment?",
+        "options": ["Circumcision", "Topical fluconazole", "Oral aciclovir", "Topical 5-fluorouracil", "Oral doxycycline"],
+        "answer": "A",
+        "explanation": "Zoon's (plasma cell) balanitis is linked to the uncircumcised state and poor hygiene. Circumcision is usually curative. Topical steroids can improve it in the short term."
+      },
+      {
+        "stem": "A young man has recurrent oral aphthae, painful scrotal ulcers, anterior uveitis and a positive pathergy test. Which HLA type is most strongly associated with this condition?",
+        "options": ["HLA-B27", "HLA-DR4", "HLA-B51", "HLA-DQ2", "HLA-Cw6"],
+        "answer": "C",
+        "explanation": "Behçet's disease is most strongly associated with HLA-B51, particularly in patients from countries along the ancient Silk Road."
+      }
+    ]
+  },
+  {
+    "slug": "infectious-disease",
+    "name": "Infectious Disease",
+    "questions": [
+      {
+        "stem": "What is the most common cause of tinea capitis in urban UK children?",
+        "options": ["Microsporum canis", "Trichophyton rubrum", "Trichophyton tonsurans", "Epidermophyton floccosum", "Malassezia furfur"],
+        "answer": "C",
+        "explanation": "Trichophyton tonsurans, an anthropophilic endothrix dermatophyte, now causes most tinea capitis in UK cities. Terbinafine works well for Trichophyton species, while griseofulvin is preferred for Microsporum."
+      },
+      {
+        "stem": "A non-pregnant adult has a solitary expanding annular erythema three weeks after a tick bite while walking in the New Forest. What is the recommended first-line treatment?",
+        "options": ["Amoxicillin for 7 days", "Doxycycline for 21 days", "Clarithromycin for 5 days", "Intravenous ceftriaxone for 14 days", "No treatment unless serology is positive"],
+        "answer": "B",
+        "explanation": "Erythema migrans is a clinical diagnosis of Lyme disease and should be treated without waiting for serology. UK (NICE) guidance recommends oral doxycycline for 21 days as first line."
+      },
+      {
+        "stem": "A family presents with intensely itchy papules and burrows in the finger web spaces. What is the first-line treatment?",
+        "options": ["Permethrin 5% cream to the whole body, repeated after 7 days", "Oral ivermectin as a single dose for all cases", "Topical hydrocortisone 1%", "Benzyl benzoate to affected areas only", "Malathion shampoo"],
+        "answer": "A",
+        "explanation": "Permethrin 5% cream is first line for scabies. It is applied from the neck down (including the scalp and face in infants and the elderly), repeated after 7 days, and all close contacts are treated at the same time."
+      },
+      {
+        "stem": "An aquarium keeper develops a nodule on the dorsum of the hand, followed by nodules along the lymphatics of the forearm. Which organism is most likely?",
+        "options": ["Mycobacterium marinum", "Mycobacterium ulcerans", "Staphylococcus aureus", "Erysipelothrix rhusiopathiae", "Pasteurella multocida"],
+        "answer": "A",
+        "explanation": "Fish tank granuloma is caused by M. marinum, which grows best at about 30–32°C. The sporotrichoid lymphatic spread is typical. Clarithromycin, doxycycline or rifampicin with ethambutol are used for several months."
+      }
+    ]
+  },
+  {
+    "slug": "paediatrics-genetics",
+    "name": "Paediatrics & Genetics",
+    "questions": [
+      {
+        "stem": "A child has six café-au-lait macules over 5 mm and axillary freckling. A mutation in which gene is most likely?",
+        "options": ["NF1 on chromosome 17", "NF2 on chromosome 22", "TSC1 on chromosome 9", "TSC2 on chromosome 16", "PTCH1 on chromosome 9"],
+        "answer": "A",
+        "explanation": "Neurofibromatosis type 1 is caused by mutations in NF1 (encoding neurofibromin) on chromosome 17q11.2. Six or more café-au-lait macules and axillary or inguinal freckling are diagnostic criteria."
+      },
+      {
+        "stem": "A 6-week-old infant has a rapidly growing segmental infantile haemangioma over the periocular region that threatens vision. What is the first-line systemic treatment?",
+        "options": ["Oral prednisolone", "Oral propranolol", "Vincristine", "Interferon alfa", "Pulsed dye laser"],
+        "answer": "B",
+        "explanation": "Oral propranolol is first-line for complicated infantile haemangiomas, including those threatening vision, the airway or causing ulceration. Treatment is started with cardiovascular and blood glucose precautions."
+      },
+      {
+        "stem": "An infant with infantile spasms has several hypopigmented, leaf-shaped macules that are much easier to see under Wood's lamp. What is the most likely diagnosis?",
+        "options": ["Vitiligo", "Neurofibromatosis type 1", "Tuberous sclerosis complex", "Incontinentia pigmenti", "Piebaldism"],
+        "answer": "C",
+        "explanation": "Ash-leaf macules are an early sign of tuberous sclerosis complex, often present before facial angiofibromas. Infantile spasms (West syndrome) are a common presenting feature."
+      },
+      {
+        "stem": "A neonate develops blisters on the hands and feet at friction sites, which heal without scarring. Mutations in which genes are most likely?",
+        "options": ["COL7A1", "LAMB3", "KRT1 and KRT10", "KRT5 and KRT14", "FLG"],
+        "answer": "D",
+        "explanation": "Epidermolysis bullosa simplex is usually caused by mutations in KRT5 or KRT14, the keratins of basal keratinocytes, so blisters form within the basal layer and heal without scarring. COL7A1 causes dystrophic EB and LAMB3 causes junctional EB."
+      }
+    ]
+  },
+  {
+    "slug": "photodermatology",
+    "name": "Photodermatology",
+    "questions": [
+      {
+        "stem": "A young woman develops itchy papules on the V of the neck and forearms a few hours after the first strong sun of spring. The rash settles over several days and becomes less frequent as summer progresses. What is the most likely diagnosis?",
+        "options": ["Solar urticaria", "Polymorphic light eruption", "Actinic prurigo", "Chronic actinic dermatitis", "Hydroa vacciniforme"],
+        "answer": "B",
+        "explanation": "Polymorphic light eruption is the most common idiopathic photodermatosis. It appears hours after exposure, spares habitually exposed skin such as the face, and improves through the summer as the skin 'hardens'."
+      },
+      {
+        "stem": "A child cries with burning pain within minutes of going out in the sun, with little visible change except mild swelling. There are no blisters. Deficiency of which enzyme is most likely?",
+        "options": ["Uroporphyrinogen decarboxylase", "Ferrochelatase", "Porphobilinogen deaminase", "Uroporphyrinogen III synthase", "Protoporphyrinogen oxidase"],
+        "answer": "B",
+        "explanation": "Erythropoietic protoporphyria is caused by ferrochelatase deficiency. Protoporphyrin accumulates and causes immediate painful phototoxicity without blistering. Patients also have a risk of gallstones and liver disease."
+      },
+      {
+        "stem": "Narrowband UVB phototherapy uses emission centred on which wavelength?",
+        "options": ["254 nm", "290 nm", "311 nm", "340–400 nm", "585 nm"],
+        "answer": "C",
+        "explanation": "Narrowband UVB lamps (TL-01) emit at 311–313 nm, which gives a good therapeutic effect in psoriasis with less erythema than broadband UVB."
+      },
+      {
+        "stem": "Which drug is classically associated with photo-onycholysis?",
+        "options": ["Amiodarone", "Hydrochlorothiazide", "Doxycycline", "Naproxen", "Voriconazole"],
+        "answer": "C",
+        "explanation": "Tetracyclines (especially doxycycline and demeclocycline) and psoralens are the classic causes of photo-onycholysis. Amiodarone causes slate-grey pigmentation, naproxen pseudoporphyria, and voriconazole phototoxicity and skin cancer."
+      }
+    ]
+  },
+  {
+    "slug": "psychodermatology",
+    "name": "Psychodermatology",
+    "questions": [
+      {
+        "stem": "A 60-year-old woman is convinced that insects are burrowing in her skin and brings specimens in a container ('specimen sign'). Examination shows only excoriations and no infestation. What is the most appropriate first-line treatment?",
+        "options": ["Oral ivermectin", "Permethrin 5% cream", "Risperidone", "Diazepam", "Topical clobetasol"],
+        "answer": "C",
+        "explanation": "Delusional infestation (a primary delusional disorder) is treated with antipsychotics. Atypical agents such as risperidone or olanzapine are now preferred, ideally in a joint dermatology–psychiatry clinic."
+      },
+      {
+        "stem": "A 12-year-old girl has a patch of hair loss on the scalp with hairs broken at different lengths. Biopsy shows trichomalacia, pigment casts and empty anagen follicles without significant inflammation. What is the diagnosis?",
+        "options": ["Alopecia areata", "Tinea capitis", "Trichotillomania", "Androgenetic alopecia", "Lichen planopilaris"],
+        "answer": "C",
+        "explanation": "Trichotillomania (hair-pulling disorder) causes broken hairs of varying length. Histology shows trichomalacia, pigment casts and haemorrhage without the peribulbar lymphocytic infiltrate of alopecia areata."
+      },
+      {
+        "stem": "A patient has bizarre, sharply angulated lesions only in sites within reach of the dominant hand, and denies causing them. Dermatitis artefacta is suspected. What is the most appropriate initial approach?",
+        "options": ["Confront the patient with the evidence", "Non-confrontational supportive management with occlusive dressings and psychological support", "Immediate discharge from clinic", "Referral to the police", "Start high-dose oral corticosteroids"],
+        "answer": "B",
+        "explanation": "Direct confrontation usually leads to disengagement. Management is empathetic and non-judgemental: treat the skin (occlusion often helps), build rapport, and introduce psychological or psychiatric support gradually."
+      },
+      {
+        "stem": "What is the first-line pharmacological treatment for body dysmorphic disorder?",
+        "options": ["A selective serotonin reuptake inhibitor (SSRI)", "A benzodiazepine", "A tricyclic antidepressant at low dose", "Lithium", "Gabapentin"],
+        "answer": "A",
+        "explanation": "SSRIs, often at higher doses than used for depression, together with cognitive behavioural therapy, are first-line for body dysmorphic disorder. Cosmetic procedures rarely help and often make symptoms worse."
+      }
+    ]
+  },
+  {
+    "slug": "skin-biology-research",
+    "name": "Skin Biology & Research",
+    "questions": [
+      {
+        "stem": "Birbeck granules ('tennis racket' organelles) on electron microscopy are characteristic of which epidermal cell?",
+        "options": ["Melanocyte", "Merkel cell", "Langerhans cell", "Basal keratinocyte", "Mast cell"],
+        "answer": "C",
+        "explanation": "Langerhans cells are bone-marrow-derived antigen-presenting cells that express CD1a and langerin (CD207). Langerin is needed for Birbeck granule formation."
+      },
+      {
+        "stem": "Which keratin pair is expressed mainly by keratinocytes in the basal layer of the epidermis?",
+        "options": ["K1 and K10", "K5 and K14", "K6 and K16", "K8 and K18", "K4 and K13"],
+        "answer": "B",
+        "explanation": "Basal keratinocytes express K5/K14. Suprabasal keratinocytes switch to K1/K10, K6/K16 appear in wound healing and psoriasis, K8/K18 are simple epithelial keratins, and K4/K13 are found in non-keratinised mucosa."
+      },
+      {
+        "stem": "The 180 kDa bullous pemphigoid antigen (BP180) is also known as what?",
+        "options": ["Type IV collagen", "Type VII collagen", "Type XVII collagen", "Laminin-332", "Plectin"],
+        "answer": "C",
+        "explanation": "BP180 is type XVII collagen, a transmembrane hemidesmosomal protein. Its NC16A domain is the main target of autoantibodies in bullous pemphigoid."
+      },
+      {
+        "stem": "In a randomised controlled trial, 40% of patients in the placebo group and 20% in the treatment group fail to reach PASI 75. What is the number needed to treat?",
+        "options": ["2", "4", "5", "10", "20"],
+        "answer": "C",
+        "explanation": "Absolute risk reduction = 40% − 20% = 20% (0.2). Number needed to treat = 1 / ARR = 1 / 0.2 = 5."
+      },
+      {
+        "stem": "From which embryological tissue are epidermal melanocytes derived?",
+        "options": ["Surface ectoderm", "Mesoderm", "Neural crest", "Endoderm", "Bone marrow"],
+        "answer": "C",
+        "explanation": "Melanoblasts migrate from the neural crest to the epidermis and hair follicles during embryogenesis. Abnormal migration underlies conditions such as piebaldism and Waardenburg syndrome."
+      }
+    ]
+  },
+  {
+    "slug": "skin-of-colour",
+    "name": "Skin of Colour",
+    "questions": [
+      {
+        "stem": "A 45-year-old woman of African descent has multiple small, dark brown, smooth papules on the cheeks and around the eyes, which have slowly increased in number since her twenties. What is the most likely diagnosis?",
+        "options": ["Syringomas", "Dermatosis papulosa nigra", "Melanocytic naevi", "Sarcoidosis", "Trichoepitheliomas"],
+        "answer": "B",
+        "explanation": "Dermatosis papulosa nigra is a common benign variant of seborrhoeic keratosis in people with darker skin. Treatment is cosmetic only and must be careful to avoid post-inflammatory dyspigmentation."
+      },
+      {
+        "stem": "A man with tightly curled hair develops inflammatory papules and pustules in the beard area after shaving. What is the most effective first-line measure?",
+        "options": ["Stop close shaving and allow the beard to grow", "Oral isotretinoin", "Shave against the direction of hair growth with a multi-blade razor", "Topical potent corticosteroid long term", "Oral flucloxacillin"],
+        "answer": "A",
+        "explanation": "Pseudofolliculitis barbae is caused by sharp-tipped curved hairs re-entering the skin. Stopping close shaving is the most effective measure. Alternatives include electric clippers, chemical depilatories and laser hair removal."
+      },
+      {
+        "stem": "A woman of African descent has a slowly enlarging area of shiny scarring hair loss on the crown, spreading outwards, with loss of follicular openings. What is the most likely diagnosis?",
+        "options": ["Alopecia areata", "Traction alopecia", "Central centrifugal cicatricial alopecia", "Tinea capitis", "Telogen effluvium"],
+        "answer": "C",
+        "explanation": "Central centrifugal cicatricial alopecia is the most common scarring alopecia in women of African descent. It starts at the vertex and spreads centrifugally, and early recognition is important to preserve hair."
+      },
+      {
+        "stem": "Which melanoma subtype makes up the largest proportion of melanomas in people with darker skin types?",
+        "options": ["Superficial spreading melanoma", "Nodular melanoma", "Lentigo maligna melanoma", "Acral lentiginous melanoma", "Desmoplastic melanoma"],
+        "answer": "D",
+        "explanation": "Acral lentiginous melanoma, on the palms, soles and nail units, is proportionally the most common subtype in people with skin of colour. It is often diagnosed late, so these sites should be examined."
+      }
+    ]
+  },
+  {
+    "slug": "skin-oncology",
+    "name": "Skin Oncology",
+    "questions": [
+      {
+        "stem": "Which histological feature is the most important prognostic factor in a primary cutaneous melanoma with no clinical evidence of spread?",
+        "options": ["Clark level", "Breslow thickness", "Mitotic rate", "Regression", "Tumour-infiltrating lymphocytes"],
+        "answer": "B",
+        "explanation": "Breslow thickness (measured in mm from the granular layer to the deepest tumour cell) is the strongest predictor of outcome in localised melanoma and defines the AJCC T category, together with ulceration."
+      },
+      {
+        "stem": "An elderly patient has a rapidly growing violaceous nodule on the face. Immunohistochemistry shows paranuclear dot-like CK20 positivity and TTF-1 negativity. Which virus is implicated in most cases?",
+        "options": ["Human papillomavirus 16", "Epstein–Barr virus", "Merkel cell polyomavirus", "Human herpesvirus 8", "HTLV-1"],
+        "answer": "C",
+        "explanation": "Merkel cell carcinoma is associated with clonal integration of Merkel cell polyomavirus in most cases. Paranuclear dot CK20 staining with negative TTF-1 helps distinguish it from metastatic small cell lung cancer."
+      },
+      {
+        "stem": "A 25-year-old has multiple basal cell carcinomas, palmar pits and odontogenic keratocysts of the jaw. Which gene is most likely mutated?",
+        "options": ["PTCH1", "CDKN2A", "TP53", "BRAF", "XPA"],
+        "answer": "A",
+        "explanation": "Gorlin (naevoid basal cell carcinoma) syndrome is usually caused by PTCH1 mutations in the Hedgehog pathway. Radiotherapy should be avoided because it triggers many new BCCs in the treated field."
+      },
+      {
+        "stem": "Which virus is required for the development of Kaposi sarcoma?",
+        "options": ["Human herpesvirus 6", "Human herpesvirus 8", "Cytomegalovirus", "Human papillomavirus 5", "Hepatitis C virus"],
+        "answer": "B",
+        "explanation": "HHV-8 (Kaposi sarcoma-associated herpesvirus) is found in all forms of Kaposi sarcoma: classic, endemic, iatrogenic and HIV-associated."
+      },
+      {
+        "stem": "A biopsy of a long-standing patch on the buttock shows atypical lymphocytes with cerebriform nuclei lining up along the basal layer, and intraepidermal clusters of these cells. What is the diagnosis?",
+        "options": ["Parapsoriasis", "Mycosis fungoides", "Primary cutaneous B-cell lymphoma", "Lymphomatoid papulosis", "Pityriasis lichenoides chronica"],
+        "answer": "B",
+        "explanation": "Mycosis fungoides is the most common cutaneous T-cell lymphoma. Typical features are epidermotropism of atypical CD4+ T cells and Pautrier microabscesses, often in sun-protected 'bathing trunk' areas."
+      }
+    ]
+  },
+  {
+    "slug": "skin-surgery",
+    "name": "Skin Surgery",
+    "questions": [
+      {
+        "stem": "What is the generally accepted maximum dose of lidocaine when given with adrenaline for local infiltration in a healthy adult?",
+        "options": ["3 mg/kg", "5 mg/kg", "7 mg/kg", "10 mg/kg", "15 mg/kg"],
+        "answer": "C",
+        "explanation": "The usual maximum is about 3 mg/kg (to 200 mg) for plain lidocaine and 7 mg/kg (to 500 mg) with adrenaline, because adrenaline slows systemic absorption. 1% lidocaine contains 10 mg/mL."
+      },
+      {
+        "stem": "After excision of a lesion over the zygomatic arch, a patient cannot raise the ipsilateral eyebrow. Which nerve has most likely been injured?",
+        "options": ["Marginal mandibular branch of the facial nerve", "Temporal (frontal) branch of the facial nerve", "Spinal accessory nerve", "Supraorbital nerve", "Great auricular nerve"],
+        "answer": "B",
+        "explanation": "The temporal branch of the facial nerve runs superficially across the zygomatic arch and supplies frontalis. Injury causes brow ptosis and inability to raise the eyebrow."
+      },
+      {
+        "stem": "Which basal cell carcinoma is the strongest indication for Mohs micrographic surgery?",
+        "options": ["A 5 mm primary nodular BCC on the back", "A recurrent infiltrative BCC on the nasal ala", "A superficial BCC on the lower leg", "A 6 mm nodular BCC on the upper arm", "Multiple superficial BCCs on the trunk"],
+        "answer": "B",
+        "explanation": "Mohs surgery suits high-risk BCCs: recurrent tumours, aggressive histological subtypes (infiltrative, morphoeic, micronodular), ill-defined margins and high-risk central facial sites where tissue sparing matters."
+      },
+      {
+        "stem": "When are non-absorbable sutures typically removed from the face?",
+        "options": ["Within 24 hours", "3–5 days", "7–10 days", "10–14 days", "14–21 days"],
+        "answer": "B",
+        "explanation": "Facial skin has an excellent blood supply and heals quickly, so sutures are removed early (about 3–5 days) to avoid track marks. Sites under more tension, such as the back and limbs, need longer."
+      }
+    ]
+  },
+  {
+    "slug": "cosmetic-dermatology",
+    "name": "Cosmetic Dermatology",
+    "questions": [
+      {
+        "stem": "Botulinum toxin type A reduces muscle contraction by cleaving which protein?",
+        "options": ["Synaptobrevin (VAMP)", "SNAP-25", "Syntaxin", "Acetylcholinesterase", "The nicotinic acetylcholine receptor"],
+        "answer": "B",
+        "explanation": "Botulinum toxin A cleaves SNAP-25, a SNARE protein needed for acetylcholine vesicle fusion at the neuromuscular junction. Type B cleaves synaptobrevin."
+      },
+      {
+        "stem": "A week after botulinum toxin injection to the glabella, a patient develops upper eyelid ptosis. Which treatment can temporarily improve it?",
+        "options": ["Apraclonidine eye drops", "Hyaluronidase injection", "Timolol eye drops", "Oral prednisolone", "Further botulinum toxin to frontalis"],
+        "answer": "A",
+        "explanation": "Apraclonidine, an alpha-adrenergic agonist, stimulates Müller's muscle and can raise the lid by 1–3 mm while the toxin effect on levator palpebrae superioris wears off."
+      },
+      {
+        "stem": "Minutes after hyaluronic acid filler injection to the nasolabial fold, the patient develops blanching followed by a dusky, livedoid pattern and pain. What is the most important immediate treatment?",
+        "options": ["Apply ice packs", "High-dose hyaluronidase injected into the affected area", "Oral antibiotics", "Massage only and review in one week", "Topical corticosteroid"],
+        "answer": "B",
+        "explanation": "These are signs of vascular occlusion. Large doses of hyaluronidase given promptly into the affected territory dissolve the hyaluronic acid and can prevent skin necrosis. Visual symptoms need emergency ophthalmology input."
+      },
+      {
+        "stem": "Which laser is most appropriate for removing black tattoo pigment?",
+        "options": ["Pulsed dye laser (585–595 nm)", "Q-switched Nd:YAG laser (1064 nm)", "Fractional CO2 laser (10,600 nm)", "Long-pulsed alexandrite laser for hair removal", "Excimer laser (308 nm)"],
+        "answer": "B",
+        "explanation": "Nanosecond (Q-switched) or picosecond lasers fragment tattoo particles through photoacoustic effects. The 1064 nm Nd:YAG wavelength is well absorbed by black ink and is relatively safe in darker skin types."
+      },
+      {
+        "stem": "Which superficial peeling agent is a lipophilic beta-hydroxy acid that is particularly useful for acne-prone, oily skin?",
+        "options": ["Glycolic acid", "Lactic acid", "Salicylic acid", "Trichloroacetic acid", "Phenol"],
+        "answer": "C",
+        "explanation": "Salicylic acid is lipophilic, so it penetrates the pilosebaceous unit and is comedolytic. Glycolic and lactic acids are hydrophilic alpha-hydroxy acids, and TCA and phenol are used for medium and deep peels."
+      }
+    ]
+  }
+]

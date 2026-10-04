@@ -1,0 +1,18 @@
+{
+  "name": "dermmcq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dermatology MCQ question bank with user accounts and per-topic performance tracking",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning src/server.js",
+    "build:prototype": "node scripts/build-prototype.js"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "sql.js": "1.10.3"
+  }
+}
