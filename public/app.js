@@ -120,7 +120,7 @@
     const correct = topics.reduce((n, t) => n + t.correct, 0);
     app.innerHTML = `
       <div>
-        <p class="eyebrow">Welcome back, ${esc(state.user.name)}</p>
+        <p class="eyebrow">Welcome back${state.user.name ? ', ' + esc(state.user.name) : ''}</p>
         <h1>Choose a topic</h1>
         <p class="lede">Each topic serves your unanswered questions in order. Pick up where you left off at any time.</p>
       </div>
@@ -294,6 +294,7 @@
   (async function boot() {
     try {
       await window.DermAPI.ready;
+      document.getElementById('logout').hidden = window.DermAPI.mode === 'shared';
       const { user } = await api('GET', '/api/me');
       state.user = user;
       go(user ? 'topics' : 'auth');

@@ -16,7 +16,7 @@ const SQLJS_URL = process.env.SQLJS_URL || 'https://cdn.jsdelivr.net/npm/sql.js@
 const index = read('public/index.html');
 const head = between(index, 'head').replace('<link rel="stylesheet" href="styles.css">', `<style>\n${read('public/styles.css')}\n</style>`);
 const body = between(index, 'body');
-const note = `<footer class="page" style="padding-top:0"><p class="notice">Prototype build: the SQLite database runs inside your browser, so accounts and answers are saved on this device only. The full app in the repository runs the same schema on a Node server.</p></footer>`;
+const note = `<footer class="page" style="padding-top:0"><p class="notice" id="mode-note">Loading…</p></footer>`;
 
 const html = [
   '<meta charset="utf-8">',

@@ -54,5 +54,12 @@ the server and in the browser prototype.
 ## Browser prototype
 
 `npm run build:prototype` writes `dist/dermmcq.html`, a single file that runs the same schema and routes in
-the browser using sql.js (SQLite compiled to JavaScript). Data is kept in that browser's localStorage, so it
-is for demonstration only; deploy the Node server for real, shared accounts.
+the browser using sql.js (SQLite compiled to JavaScript).
+
+- Hosted as a claude.ai artifact with the `db` and `user` capabilities, it runs in **shared mode**: viewers
+  sign in with their claude.ai account and their answers are saved to a private per-user document in the
+  artifact database (`data/users/<id>/progress`), so progress follows them across devices. Viewers need
+  Contributor access to save progress.
+- Anywhere else it runs in **local mode**: email/password accounts, with the SQLite file in localStorage.
+
+Deploy the Node server for a public site with its own email/password sign-up.
