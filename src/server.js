@@ -24,7 +24,8 @@ const db = {
 
 const schema = fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8');
 const questions = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'questions.json'), 'utf8'));
-if (seed(db, schema, questions)) console.log('Seeded question bank.');
+const added = seed(db, schema, questions);
+if (added) console.log(`Added ${added} questions to the bank.`);
 
 const scrypt = promisify(nodeCrypto.scrypt);
 const crypto = {

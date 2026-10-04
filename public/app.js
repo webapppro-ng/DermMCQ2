@@ -55,7 +55,7 @@
     'Cutaneous Allergy', 'Dermatopathology', 'Dermoscopy', 'Dressings & Wound Care',
     'Formulary & Systemic Therapy', 'General Dermatology', 'Genito-urinary & Oral Medicine',
     'Infectious Disease', 'Paediatrics & Genetics', 'Photodermatology', 'Psychodermatology',
-    'Skin Biology & Research', 'Skin of Colour', 'Skin Oncology', 'Skin Surgery', 'Cosmetic Dermatology',
+    'Skin Biology & Research', 'Skin of Colour', 'Skin Oncology', 'Skin Surgery & Cosmetic Dermatology',
   ];
 
   function renderAuth() {
@@ -64,7 +64,7 @@
       <section class="auth">
         <div class="auth-intro">
           <p class="eyebrow">Dermatology question bank</p>
-          <h1>Single best answer practice across 16 dermatology topics</h1>
+          <h1>Single best answer practice across 15 dermatology topics</h1>
           <p class="lede">Work through each topic one question at a time. Every answer comes with an explanation, and your performance page tracks your score by topic. Accounts are free.</p>
           <div class="topic-cloud">${TOPIC_NAMES.map((n) => `<span>${esc(n)}</span>`).join('')}</div>
         </div>

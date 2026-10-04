@@ -432,8 +432,8 @@
     ]
   },
   {
-    "slug": "skin-surgery",
-    "name": "Skin Surgery",
+    "slug": "skin-surgery-cosmetic",
+    "name": "Skin Surgery & Cosmetic Dermatology",
     "questions": [
       {
         "stem": "What is the generally accepted maximum dose of lidocaine when given with adrenaline for local infiltration in a healthy adult?",
@@ -458,13 +458,7 @@
         "options": ["Within 24 hours", "3–5 days", "7–10 days", "10–14 days", "14–21 days"],
         "answer": "B",
         "explanation": "Facial skin has an excellent blood supply and heals quickly, so sutures are removed early (about 3–5 days) to avoid track marks. Sites under more tension, such as the back and limbs, need longer."
-      }
-    ]
-  },
-  {
-    "slug": "cosmetic-dermatology",
-    "name": "Cosmetic Dermatology",
-    "questions": [
+      },
       {
         "stem": "Botulinum toxin type A reduces muscle contraction by cleaving which protein?",
         "options": ["Synaptobrevin (VAMP)", "SNAP-25", "Syntaxin", "Acetylcholinesterase", "The nicotinic acetylcholine receptor"],

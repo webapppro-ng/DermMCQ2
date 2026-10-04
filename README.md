@@ -1,6 +1,6 @@
 # DermMCQ
 
-A dermatology multiple-choice question bank. Users sign up for free, pick one of 16 topics, and work through
+A dermatology multiple-choice question bank. Users sign up for free, pick one of 15 topics, and work through
 their unanswered questions one at a time. Each answer shows the correct option and an explanation. A
 performance page shows questions answered and percentage correct, overall and per topic.
 
@@ -22,7 +22,7 @@ The database is created and seeded from `db/questions.json` on first start.
 
 | Table       | Purpose |
 |-------------|---------|
-| `topics`    | The 16 question areas |
+| `topics`    | The 15 question areas |
 | `questions` | `stem`, `option_a`…`option_e`, `correct_option` (`A`–`E`), `explanation`, `topic_id` |
 | `users`     | Email, name, scrypt password hash |
 | `sessions`  | Login tokens (HTTP-only cookie, 30 days) |
@@ -31,7 +31,8 @@ The database is created and seeded from `db/questions.json` on first start.
 ## Adding questions
 
 Add entries to `db/questions.json` under the right topic (exactly five options, `answer` is a letter A–E),
-then delete `data/dermmcq.sqlite` to reseed, or insert rows directly into the `questions` table.
+then restart the server. On start the database is synced with the file: new topics and questions are added,
+and questions moved between topics keep their users' answers.
 
 ## API
 

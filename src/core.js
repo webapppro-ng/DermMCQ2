@@ -31,34 +31,45 @@
     }
   }
 
+  // Brings the database in line with the question file. Safe to run on every start:
+  // topics are added, renamed and reordered; new questions are inserted; questions are matched by
+  // stem and moved to their current topic (keeping their ids, so users' answers survive);
+  // topics left with no questions are removed. Questions missing from the file are kept.
   function seed(db, schemaSql, topicsData) {
     db.exec(schemaSql);
-    const existing = db.get('SELECT COUNT(*) AS n FROM topics', []);
-    if (existing && Number(existing.n) > 0) return false;
+    let added = 0;
     db.exec('BEGIN');
     try {
       topicsData.forEach((t, i) => {
-        const { lastInsertRowid: topicId } = db.run(
-          'INSERT INTO topics (slug, name, sort_order) VALUES (?, ?, ?)',
-          [t.slug, t.name, i]
-        );
+        const found = db.get('SELECT id FROM topics WHERE slug = ?', [t.slug]);
+        const topicId = found
+          ? found.id
+          : db.run('INSERT INTO topics (slug, name, sort_order) VALUES (?, ?, ?)', [t.slug, t.name, i]).lastInsertRowid;
+        db.run('UPDATE topics SET name = ?, sort_order = ? WHERE id = ?', [t.name, i, topicId]);
         for (const q of t.questions) {
           if (q.options.length !== 5) throw new Error(`Question needs 5 options: ${q.stem}`);
           if (!OPTIONS.includes(q.answer)) throw new Error(`Bad answer letter: ${q.stem}`);
+          const existing = db.get('SELECT id FROM questions WHERE stem = ?', [q.stem]);
+          if (existing) {
+            db.run('UPDATE questions SET topic_id = ? WHERE id = ?', [topicId, existing.id]);
+            continue;
+          }
           db.run(
             `INSERT INTO questions
                (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [topicId, q.stem, ...q.options, q.answer, q.explanation]
           );
+          added++;
         }
       });
+      db.run('DELETE FROM topics WHERE id NOT IN (SELECT DISTINCT topic_id FROM questions)', []);
       db.exec('COMMIT');
     } catch (err) {
       db.exec('ROLLBACK');
       throw err;
     }
-    return true;
+    return added;
   }
 
   function createApp(db, crypto) {
