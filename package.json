@@ -6,9 +6,13 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node --no-warnings=ExperimentalWarning src/server.js",
-    "build:prototype": "node scripts/build-prototype.js"
+    "build:prototype": "node scripts/build-prototype.js",
+    "db:export": "node --no-warnings=ExperimentalWarning scripts/export-seed-sql.js",
+    "db:seed": "node --no-warnings=ExperimentalWarning scripts/seed-from-sql.js"
   },
-  "engines": { "node": ">=22.13" },
+  "engines": {
+    "node": ">=22.13"
+  },
   "dependencies": {
     "express": "^5.1.0"
   },

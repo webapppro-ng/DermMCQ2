@@ -44,6 +44,26 @@ one point per line and are shown as a bulleted list.
 Psychodermatology and Dressings & Wound Care currently have no questions; they appear in the app as
 "No questions yet" until questions are added.
 
+## SQL seed file
+
+`db/seed/dermmcq-seed.sql` is a standalone SQL snapshot of the question bank: the schema plus every topic
+and question (no users, answers or flags). Use it to create a database whenever one is needed:
+
+```sh
+npm run db:seed                  # create data/dermmcq.sqlite from the seed file
+npm run db:seed -- --fresh       # replace an existing database (deletes its users and progress)
+npm run db:seed -- --file db/seed/dermmcq-seed.sql --db path/to/other.sqlite
+sqlite3 data/dermmcq.sqlite < db/seed/dermmcq-seed.sql   # same thing with the sqlite3 CLI
+```
+
+After changing questions, regenerate the snapshot from the database with `npm run db:export` (or
+`npm run db:export -- path/to/db.sqlite path/to/out.sql`). If no database exists yet, the export builds
+the bank from `db/questions.json`.
+
+The server still syncs the database with `db/questions.json` every time it starts, so keep that file as the
+place to edit questions and export the SQL file afterwards; otherwise edits made directly in the database
+are overwritten from the JSON file on the next start.
+
 ## Adding or editing questions
 
 Edit `db/questions.json` (exactly five options, `answer` is a letter A–E) and restart the server. On start
