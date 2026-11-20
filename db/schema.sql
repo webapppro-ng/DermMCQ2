@@ -18,7 +18,11 @@ CREATE TABLE IF NOT EXISTS questions (
   option_d       TEXT NOT NULL,
   option_e       TEXT NOT NULL,
   correct_option TEXT NOT NULL CHECK (correct_option IN ('A','B','C','D','E')),
-  explanation    TEXT NOT NULL
+  explanation    TEXT NOT NULL,
+  -- Rich text (sanitized HTML) shown to users; `stem` and `explanation` hold the same content as plain
+  -- text for search, previews and matching questions to db/questions.json.
+  stem_html        TEXT NOT NULL DEFAULT '',
+  explanation_html TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_questions_topic ON questions(topic_id);
 
@@ -72,3 +76,11 @@ CREATE TABLE IF NOT EXISTS redo_attempts (
   UNIQUE (user_id, question_id)
 );
 CREATE INDEX IF NOT EXISTS idx_redo_user ON redo_attempts(user_id);
+
+-- Images uploaded in the admin dashboard and embedded in rich text as /media/<id>.
+CREATE TABLE IF NOT EXISTS images (
+  id         INTEGER PRIMARY KEY,
+  mime       TEXT NOT NULL CHECK (mime IN ('image/png','image/jpeg','image/gif','image/webp')),
+  data       BLOB NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);

@@ -70,6 +70,8 @@
     return uid ? { db, userCap, uid } : null;
   }
 
+  const appOptions = (extra) => Object.assign({ sanitizeHtml: window.DOMPurify ? DermRich.sanitizeInBrowser : undefined }, extra);
+  const dataUrlToBlob = (mime, base64) => new Blob([fromB64(base64)], { type: mime });
   const EDITS = 'questionEdits'; // shared collection: the owner's question-bank edits, one document per question
   let app, sql, mode = 'local', token = null, persist = async () => {}, saveEdit = null;
 
@@ -82,7 +84,18 @@
       sql = new SQL.Database();
       const db = adapter(sql);
       DermCore.seed(db, window.DERM_SCHEMA, window.DERM_SEED);
-      app = DermCore.createApp(db, cryptoImpl);
+      // Images go to the page's asset store (writers only; null for everyone else).
+      const assets = await window.claude.use('assets').catch(() => null);
+      app = DermCore.createApp(db, cryptoImpl, appOptions({
+        saveImage: assets ? async ({ mime, base64 }) => {
+          try {
+            const up = await assets.upload(dataUrlToBlob(mime, base64), { type: mime });
+            return '/_blob/' + up.id; // durable path that resolves in every view of the page
+          } catch (e) {
+            throw new DermCore.HttpError(400, e && e.code === 'too_large' ? 'That image is too large.' : 'The image could not be uploaded. Try again.');
+          }
+        } : undefined,
+      }));
       const me = await shared.userCap.me();
       // The page's owner is the administrator of the shared question bank.
       const userId = db.run('INSERT INTO users (email, name, password_hash, is_admin) VALUES (?, ?, ?, ?)',
@@ -108,13 +121,17 @@
         }
         const tid = topicId(e.topic);
         if (!tid || !Array.isArray(e.options) || e.options.length !== 5 || !/^[A-E]$/.test(e.answer)) continue;
-        const values = [tid, String(e.stem), ...e.options.map(String), e.answer, String(e.explanation || '')];
+        // Shared documents are untrusted: rich text is sanitized again before use.
+        const stemHtml = DermRich.sanitizeInBrowser(e.stemHtml || DermRich.textToHtml(e.stem, false));
+        const explanationHtml = DermRich.sanitizeInBrowser(e.explanationHtml || DermRich.textToHtml(e.explanation, true));
+        const values = [tid, DermRich.htmlToText(stemHtml) || String(e.stem || '[image]'), ...e.options.map(String), e.answer,
+          DermRich.htmlToText(explanationHtml) || String(e.explanation || '[image]'), stemHtml, explanationHtml];
         if (id) {
           db.run(`UPDATE questions SET topic_id = ?, stem = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, option_e = ?,
-                  correct_option = ?, explanation = ? WHERE id = ?`, [...values, id]);
+                  correct_option = ?, explanation = ?, stem_html = ?, explanation_html = ? WHERE id = ?`, [...values, id]);
         } else {
-          const nid = db.run(`INSERT INTO questions (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation)
-                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, values).lastInsertRowid;
+          const nid = db.run(`INSERT INTO questions (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation,
+                                stem_html, explanation_html) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, values).lastInsertRowid;
           keyToId[d.id] = nid; idToKey[nid] = d.id;
         }
       }
@@ -130,7 +147,8 @@
         const q = out.body.question;
         if (!idToKey[q.id]) { const k = 'n' + hex(crypto.getRandomValues(new Uint8Array(8))); idToKey[q.id] = k; keyToId[k] = q.id; }
         return shared.db.collection(EDITS).doc(idToKey[q.id]).set({
-          topic: q.topic, stem: q.stem, options: q.options, answer: q.answer, explanation: q.explanation, at,
+          topic: q.topic, stem: q.stem, stemHtml: q.stemHtml, options: q.options, answer: q.answer,
+          explanation: q.explanation, explanationHtml: q.explanationHtml, at,
         });
       };
       const progressRef = shared.db.doc('data/users/' + shared.uid + '/progress');
@@ -188,7 +206,11 @@
     // Single-device prototype: the first account created in this browser administers its question bank.
     sql.run(`UPDATE users SET is_admin = 1 WHERE id = (SELECT MIN(id) FROM users)
                AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin = 1)`);
-    app = DermCore.createApp(adapter(sql), cryptoImpl, { firstUserIsAdmin: true });
+    // Browser-only build: images are kept inline in the rich text.
+    app = DermCore.createApp(adapter(sql), cryptoImpl, appOptions({
+      firstUserIsAdmin: true,
+      saveImage: ({ mime, base64 }) => `data:${mime};base64,${base64}`,
+    }));
     token = store.get(TOKEN_KEY);
     persist = async () => {
       store.set(DB_KEY, toB64(sql.export()));

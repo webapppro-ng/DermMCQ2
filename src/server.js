@@ -6,7 +6,9 @@ const nodeCrypto = require('node:crypto');
 const { promisify } = require('node:util');
 const { DatabaseSync } = require('node:sqlite');
 const express = require('express');
+const sanitizeHtml = require('sanitize-html');
 const { seed, createApp } = require('./core');
+const rich = require('../public/rich.js');
 
 const ROOT = path.join(__dirname, '..');
 const PORT = Number(process.env.PORT) || 3000;
@@ -47,9 +49,17 @@ const crypto = {
 
 // Comma-separated emails that become administrators when they sign up or log in.
 // Accounts can also be promoted with `npm run admin -- grant <email>`.
-const app = createApp(db, crypto, { adminEmails: (process.env.ADMIN_EMAILS || '').split(',') });
+const app = createApp(db, crypto, {
+  adminEmails: (process.env.ADMIN_EMAILS || '').split(','),
+  sanitizeHtml: rich.nodeSanitizer(sanitizeHtml),
+  // Uploaded images live in the database and are embedded in rich text as /media/<id>.
+  saveImage({ mime, base64 }) {
+    const { lastInsertRowid } = db.run('INSERT INTO images (mime, data) VALUES (?, ?)', [mime, Buffer.from(base64, 'base64')]);
+    return `/media/${lastInsertRowid}`;
+  },
+});
 const server = express();
-server.use(express.json());
+server.use(express.json({ limit: '6mb' })); // rich text can carry an image upload
 
 function readCookie(req, name) {
   const header = req.headers.cookie || '';
@@ -78,6 +88,25 @@ server.all('/api/*splat', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+server.get('/media/:id', (req, res) => {
+  const img = /^\d+$/.test(req.params.id) && db.get('SELECT mime, data FROM images WHERE id = ?', [Number(req.params.id)]);
+  if (!img) return res.status(404).end();
+  res.set({ 'Content-Type': img.mime, 'Cache-Control': 'public, max-age=31536000, immutable', 'X-Content-Type-Options': 'nosniff' });
+  res.send(Buffer.from(img.data));
+});
+
+// Editor and sanitizer served from node_modules (the hosted build loads the same versions from a CDN).
+const VENDOR = {
+  'quill.js': 'quill/dist/quill.js',
+  'quill.snow.css': 'quill/dist/quill.snow.css',
+  'purify.min.js': 'dompurify/dist/purify.min.js',
+};
+server.get('/vendor/:file', (req, res) => {
+  const file = VENDOR[req.params.file];
+  if (!file) return res.status(404).end();
+  res.sendFile(path.join(ROOT, 'node_modules', file));
 });
 
 server.use(express.static(path.join(ROOT, 'public')));

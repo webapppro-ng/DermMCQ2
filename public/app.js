@@ -184,11 +184,10 @@
   }
 
   /* ---------- Quiz ---------- */
-  // Explanations are stored one point per line; show several points as a list.
-  function explanationHtml(text) {
-    const points = String(text).split('\n').map((s) => s.trim()).filter(Boolean);
-    if (points.length < 2) return `<p>${esc(points[0] || '')}</p>`;
-    return `<ul class="points">${points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>`;
+  // Rich text (sanitized HTML) for stems and explanations. Falls back to the plain text, with several
+  // explanation lines shown as a bulleted list.
+  function richHtml(html, text, asList) {
+    return `<div class="rich">${DermRich.sanitizeInBrowser(html || DermRich.textToHtml(text, asList))}</div>`;
   }
 
   async function renderQuiz() {
@@ -255,7 +254,7 @@
   function questionHtml(question, meta = '') {
     return `
         ${meta}
-        <p class="stem">${esc(question.stem)}</p>
+        <div class="stem">${richHtml(question.stemHtml, question.stem)}</div>
         <ul class="options" id="options">
           ${question.options.map((o) => `
             <li><button class="option" type="button" data-key="${o.key}" aria-pressed="false">
@@ -303,7 +302,7 @@
       document.getElementById('feedback').innerHTML = `
         <div class="explanation">
           <p class="verdict ${result.correct ? 'ok' : 'bad'}">${esc(opts.verdict(result))}</p>
-          ${explanationHtml(result.explanation)}
+          ${richHtml(result.explanationHtml, result.explanation, true)}
         </div>`;
       submit.textContent = opts.nextLabel(result);
       submit.disabled = false;
@@ -405,6 +404,118 @@
     if (more) more.onclick = () => { a.limit += 50; drawAdminResults(); };
   }
 
+  /* ----- Rich text editor (Quill), loaded only when an administrator edits a question ----- */
+  let quillLoading = null;
+  function loadQuill() {
+    if (window.Quill) return Promise.resolve();
+    if (!quillLoading) {
+      quillLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = window.DERM_VENDOR.quill;
+        s.onload = resolve;
+        s.onerror = () => { quillLoading = null; reject(new Error('Editor failed to load')); };
+        document.head.appendChild(s);
+      });
+    }
+    return quillLoading;
+  }
+
+  const EDITOR_TOOLBAR = [
+    [{ header: [3, 4, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ script: 'sub' }, { script: 'super' }],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['blockquote', 'link', 'image'],
+    ['clean'],
+  ];
+  const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+  function makeEditor(id, html, label, placeholder) {
+    const quill = new window.Quill('#' + id, {
+      theme: 'snow',
+      placeholder,
+      modules: {
+        toolbar: { container: EDITOR_TOOLBAR, handlers: { image() { pickImage(quill); } } },
+        uploader: { mimetypes: IMAGE_TYPES, handler(range, files) { uploadImages(quill, range, files); } },
+      },
+    });
+    quill.setContents(quill.clipboard.convert({ html: DermRich.sanitizeInBrowser(html || '') }), 'silent');
+    quill.history.clear();
+    quill.root.setAttribute('aria-label', label);
+    quill.root.setAttribute('role', 'textbox');
+    quill.root.setAttribute('aria-multiline', 'true');
+    return quill;
+  }
+
+  // Quill's export turns every space into &nbsp;, which stops text wrapping; store normal spaces.
+  function editorHtml(quill) {
+    const html = quill.getSemanticHTML().replace(/&nbsp;/g, ' ');
+    return DermRich.hasContent(html) ? html : '';
+  }
+
+  function pickImage(quill) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = IMAGE_TYPES.join(',');
+    input.onchange = () => input.files[0] && uploadImages(quill, quill.getSelection(true), [input.files[0]]);
+    input.click();
+  }
+
+  async function uploadImages(quill, range, files) {
+    const status = document.getElementById('upload-status');
+    let index = range ? range.index : quill.getLength();
+    for (const file of files) {
+      try {
+        status.textContent = `Uploading ${file.name || 'image'}…`;
+        const dataUrl = await prepareImage(file);
+        const { url } = await api('POST', '/api/admin/images', { dataUrl });
+        quill.insertEmbed(index, 'image', url, 'user');
+        index += 1;
+        quill.setSelection(index, 0, 'silent');
+        status.textContent = 'Image added.';
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    }
+  }
+
+  // Scales photos down to at most 1600px on the longest side before upload. GIFs are kept as they are
+  // so animations survive. PNGs stay PNG unless they are large, then become JPEG on a white background.
+  async function prepareImage(file) {
+    if (!IMAGE_TYPES.includes(file.type)) throw new Error('Choose a PNG, JPEG, GIF or WebP image.');
+    const asDataUrl = (blob) => new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(new Error('That file could not be read.'));
+      r.readAsDataURL(blob);
+    });
+    if (file.type === 'image/gif') {
+      if (file.size > 3 * 1024 * 1024) throw new Error('GIFs must be under 3 MB.');
+      return asDataUrl(file);
+    }
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('That image could not be opened.'));
+      el.src = URL.createObjectURL(file);
+    });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext('2d');
+    URL.revokeObjectURL(img.src);
+    if (file.type === 'image/png') {
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const png = canvas.toDataURL('image/png');
+      if (png.length < 1500000) return png;
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  }
+
   async function renderAdminEdit() {
     if (!state.admin.questions.length) await loadAdmin();
     const a = state.admin;
@@ -428,8 +539,8 @@
             <select id="q-topic">${a.topics.map((t) => `<option value="${esc(t.slug)}"${t.slug === q.topic ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
           </div>
           <div class="field">
-            <label for="q-stem">Question stem</label>
-            <textarea id="q-stem" rows="6">${esc(q.stem)}</textarea>
+            <span class="field-label" id="q-stem-label">Question stem</span>
+            <div class="rich-editor" id="q-stem"></div>
           </div>
           <fieldset class="field option-edit">
             <legend>Answer options <span class="muted">(select the correct one)</span></legend>
@@ -443,10 +554,11 @@
               </div>`).join('')}
           </fieldset>
           <div class="field">
-            <label for="q-expl">Explanation</label>
-            <textarea id="q-expl" rows="7">${esc(q.explanation)}</textarea>
-            <span class="hint">One point per line. Several lines are shown to users as a bulleted list.</span>
+            <span class="field-label" id="q-expl-label">Explanation</span>
+            <div class="rich-editor" id="q-expl"></div>
+            <span class="hint">Use the toolbar for headings, bold, italics, lists, links and images. You can also paste or drop an image into either box.</span>
           </div>
+          <p class="hint" id="upload-status" aria-live="polite"></p>
           <p class="notice" id="answer-warning" hidden></p>
           <p class="error" id="form-error" hidden></p>
           <div class="row actions">
@@ -463,6 +575,19 @@
     document.getElementById('cancel').onclick = back;
     const form = document.getElementById('qform');
     const warn = document.getElementById('answer-warning');
+    const errEl = document.getElementById('form-error');
+    let editors;
+    try {
+      await loadQuill();
+      editors = {
+        stem: makeEditor('q-stem', q.stemHtml, 'Question stem', 'Write the question stem…'),
+        expl: makeEditor('q-expl', q.explanationHtml, 'Explanation', 'Explain the answer…'),
+      };
+    } catch (err) {
+      errEl.textContent = 'The rich text editor could not load. Check your connection and reload the page.';
+      errEl.hidden = false;
+      document.getElementById('save').disabled = true;
+    }
     form.querySelectorAll('input[name="q-answer"]').forEach((r) => (r.onchange = () => {
       form.querySelectorAll('.option-row').forEach((row) => row.classList.toggle('is-answer', row.querySelector('input[type=radio]').checked));
       const changed = !isNew && r.value !== q.answer;
@@ -475,14 +600,14 @@
     }));
     form.onsubmit = async (e) => {
       e.preventDefault();
-      const errEl = document.getElementById('form-error');
+      if (!editors) return;
       const picked = form.querySelector('input[name="q-answer"]:checked');
       const payload = {
         topic: document.getElementById('q-topic').value,
-        stem: document.getElementById('q-stem').value,
+        stemHtml: editorHtml(editors.stem),
         options: ['A', 'B', 'C', 'D', 'E'].map((k) => document.getElementById('q-opt-' + k).value),
         answer: picked ? picked.value : '',
-        explanation: document.getElementById('q-expl').value,
+        explanationHtml: editorHtml(editors.expl),
       };
       const save = document.getElementById('save');
       save.disabled = true;
@@ -685,7 +810,7 @@
           <div class="bar" aria-hidden="true" style="margin-top:10px"><i style="width:${((i + 1) / list.length) * 100}%"></i></div>
         </div>
         <div class="row review-meta"><span class="eyebrow">${esc(q.topic.name)}</span>${status}</div>
-        <p class="stem">${esc(q.stem)}</p>
+        <div class="stem">${richHtml(q.stemHtml, q.stem)}</div>
         <ul class="options">
           ${q.options.map((o) => {
             let cls = '', tag = '';
@@ -695,7 +820,7 @@
           }).join('')}
         </ul>
         ${revealed
-          ? `<div class="explanation"><p class="verdict">The answer is ${q.correctOption}</p>${explanationHtml(q.explanation)}</div>`
+          ? `<div class="explanation"><p class="verdict">The answer is ${q.correctOption}</p>${richHtml(q.explanationHtml, q.explanation, true)}</div>`
           : '<div class="row"><button class="btn btn-ghost" type="button" id="reveal">Show answer and explanation</button></div>'}
         ${flagNoteHtml(Object.assign({}, q, { flagged: true }))}
         <div class="row review-nav">

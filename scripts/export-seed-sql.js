@@ -18,7 +18,7 @@ const schema = fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8');
 
 let sqlite;
 if (fs.existsSync(dbFile)) {
-  sqlite = new DatabaseSync(dbFile, { readOnly: true });
+  sqlite = new DatabaseSync(dbFile); // opened writable so an older database can be brought up to the current schema
 } else {
   console.log(`${path.relative(ROOT, dbFile)} not found; building the bank from db/questions.json.`);
   sqlite = new DatabaseSync(':memory:');
@@ -31,17 +31,25 @@ if (fs.existsSync(dbFile)) {
   seed(db, schema, JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'questions.json'), 'utf8')));
 }
 
-const lit = (v) => (v === null || v === undefined ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
+const lit = (v) => (v === null || v === undefined ? 'NULL'
+  : typeof v === 'number' ? String(v)
+  : v instanceof Uint8Array ? `X'${Buffer.from(v).toString('hex')}'`
+  : `'${String(v).replace(/'/g, "''")}'`);
+const { migrate } = require('../src/core');
+migrate({ all: (q, p = []) => sqlite.prepare(q).all(...p), run: (q, p = []) => sqlite.prepare(q).run(...p), exec: (q) => sqlite.exec(q) });
 const topics = sqlite.prepare('SELECT id, slug, name, sort_order FROM topics ORDER BY sort_order, id').all();
 const questions = sqlite.prepare(
-  `SELECT q.id, q.topic_id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option, q.explanation
+  `SELECT q.id, q.topic_id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option, q.explanation,
+          q.stem_html, q.explanation_html
      FROM questions q JOIN topics t ON t.id = q.topic_id ORDER BY t.sort_order, q.id`
 ).all();
+const hasImages = sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'images'").get().n > 0;
+const images = hasImages ? sqlite.prepare('SELECT id, mime, data FROM images ORDER BY id').all() : [];
 
 const lines = [
   '-- DermMCQ question bank seed',
-  `-- Generated ${new Date().toISOString().slice(0, 10)} by scripts/export-seed-sql.js: ${topics.length} topics, ${questions.length} questions.`,
-  '-- Contains the schema plus topics and questions only (no users, answers or flags).',
+  `-- Generated ${new Date().toISOString().slice(0, 10)} by scripts/export-seed-sql.js: ${topics.length} topics, ${questions.length} questions, ${images.length} images.`,
+  '-- Contains the schema plus topics, questions (plain and rich text) and the images they embed; no users, answers or flags.',
   '--',
   '-- Seed a new database:   npm run db:seed',
   '--                  or:   sqlite3 data/dermmcq.sqlite < db/seed/dermmcq-seed.sql',
@@ -61,10 +69,14 @@ for (const q of questions) {
     lines.push('', `-- ${topics.find((t) => t.id === current).name}`);
   }
   lines.push(
-    'INSERT INTO questions (id, topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation) VALUES (' +
-      [q.id, q.topic_id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option, q.explanation].map(lit).join(', ') +
+    'INSERT INTO questions (id, topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation, stem_html, explanation_html) VALUES (' +
+      [q.id, q.topic_id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option, q.explanation, q.stem_html, q.explanation_html].map(lit).join(', ') +
       ');'
   );
+}
+if (images.length) {
+  lines.push('', '-- Images embedded in rich text as /media/<id>');
+  for (const im of images) lines.push(`INSERT INTO images (id, mime, data) VALUES (${[im.id, im.mime, im.data].map(lit).join(', ')});`);
 }
 lines.push('', 'COMMIT;', '');
 

@@ -16,7 +16,10 @@
     "node": ">=22.13"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "dompurify": "^3.4.18",
+    "express": "^5.1.0",
+    "quill": "2.0.3",
+    "sanitize-html": "^2.18.2"
   },
   "devDependencies": {
     "sql.js": "1.10.3"

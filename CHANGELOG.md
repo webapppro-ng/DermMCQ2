@@ -6,6 +6,11 @@
   topic, stem, options, correct answer and explanation; add and delete questions. Changing an answer key
   re-marks existing answers. Server administrators are set with `npm run admin` or `ADMIN_EMAILS`; on the
   hosted page the owner is the administrator.
+- Rich text question stems and explanations (`stem_html`, `explanation_html`), edited in the admin
+  dashboard with a Quill editor: formatting, headings, lists, quotes, links and images. Images are resized in
+  the browser and stored in the database (`images` table, `/media/<id>`), the hosted page's asset store, or
+  inline in the browser-only build. All rich text is sanitized on save and on display. Existing questions are
+  converted automatically.
 - The question file now only fills an empty bank; the database is the source of truth afterwards so admin
   edits persist. `npm run db:sync` applies `db/questions.json` explicitly.
 

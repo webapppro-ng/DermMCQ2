@@ -13,8 +13,14 @@ const between = (s, tag) => {
 const inlineScript = (code) => `<script>\n${code.replace(/<\/script/gi, '<\\/script')}\n</script>`;
 
 const SQLJS_URL = process.env.SQLJS_URL || 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-asm.js';
+// Same versions as the server serves from node_modules, loaded from jsDelivr (stylesheets must be inline).
+const ver = (pkg) => require(path.join(ROOT, 'node_modules', pkg, 'package.json')).version;
+const QUILL_URL = `https://cdn.jsdelivr.net/npm/quill@${ver('quill')}/dist/quill.js`;
+const PURIFY_URL = `https://cdn.jsdelivr.net/npm/dompurify@${ver('dompurify')}/dist/purify.min.js`;
 const index = read('public/index.html');
-const head = between(index, 'head').replace('<link rel="stylesheet" href="styles.css">', `<style>\n${read('public/styles.css')}\n</style>`);
+const head = between(index, 'head')
+  .replace('<link rel="stylesheet" href="vendor/quill.snow.css">', `<style>\n${read('node_modules/quill/dist/quill.snow.css')}\n</style>`)
+  .replace('<link rel="stylesheet" href="styles.css">', `<style>\n${read('public/styles.css')}\n</style>`);
 const body = between(index, 'body');
 const note = `<footer class="page" style="padding-top:0"><p class="notice" id="mode-note">Loading…</p></footer>`;
 
@@ -24,6 +30,9 @@ const html = [
   body,
   note,
   `<script src="${SQLJS_URL}"></script>`,
+  `<script src="${PURIFY_URL}"></script>`,
+  inlineScript(read('public/rich.js')),
+  inlineScript(`window.DERM_VENDOR = { quill: ${JSON.stringify(QUILL_URL)} };`),
   inlineScript(read('src/core.js')),
   inlineScript(`window.DERM_SCHEMA = ${JSON.stringify(read('db/schema.sql'))};\nwindow.DERM_SEED = ${read('db/questions.json')};`),
   inlineScript(read('scripts/prototype-api.js')),

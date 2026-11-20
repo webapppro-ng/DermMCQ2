@@ -16,9 +16,9 @@
  *   crypto.randomToken() -> string
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.DermCore = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('../public/rich.js'));
+  else root.DermCore = factory(root.DermRich);
+})(typeof self !== 'undefined' ? self : this, function (rich) {
   'use strict';
 
   const SESSION_DAYS = 30;
@@ -35,6 +35,14 @@
   function migrate(db) {
     const cols = db.all('PRAGMA table_info(users)', []).map((c) => c.name);
     if (!cols.includes('is_admin')) db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+    const qcols = db.all('PRAGMA table_info(questions)', []).map((c) => c.name);
+    if (!qcols.includes('stem_html')) db.exec("ALTER TABLE questions ADD COLUMN stem_html TEXT NOT NULL DEFAULT ''");
+    if (!qcols.includes('explanation_html')) db.exec("ALTER TABLE questions ADD COLUMN explanation_html TEXT NOT NULL DEFAULT ''");
+    // Questions stored before rich text: build their rich text from the plain text (explanations as bullets).
+    for (const q of db.all("SELECT id, stem, explanation FROM questions WHERE stem_html = '' OR explanation_html = ''", [])) {
+      db.run('UPDATE questions SET stem_html = ?, explanation_html = ? WHERE id = ?',
+        [rich.textToHtml(q.stem, false), rich.textToHtml(q.explanation, true), q.id]);
+    }
   }
 
   // Creates the schema and loads the question file.
@@ -63,11 +71,13 @@
           if (!OPTIONS.includes(q.answer)) throw new Error(`Bad answer letter: ${q.stem}`);
           // A question is identified by its stem plus first option (some stems, e.g. "Which is false?", repeat).
           const existing = db.get('SELECT id FROM questions WHERE stem = ? AND option_a = ?', [q.stem, q.options[0]]);
-          const values = [topicId, ...q.options, q.answer, q.explanation];
+          // The file holds plain text, optionally with stemHtml / explanationHtml for rich text.
+          const values = [topicId, ...q.options, q.answer, q.explanation,
+            q.stemHtml || rich.textToHtml(q.stem, false), q.explanationHtml || rich.textToHtml(q.explanation, true)];
           if (existing) {
             db.run(
               `UPDATE questions SET topic_id = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, option_e = ?,
-                      correct_option = ?, explanation = ? WHERE id = ?`,
+                      correct_option = ?, explanation = ?, stem_html = ?, explanation_html = ? WHERE id = ?`,
               [...values, existing.id]
             );
             keep.add(Number(existing.id));
@@ -75,8 +85,8 @@
           }
           const { lastInsertRowid } = db.run(
             `INSERT INTO questions
-               (topic_id, option_a, option_b, option_c, option_d, option_e, correct_option, explanation, stem)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               (topic_id, option_a, option_b, option_c, option_d, option_e, correct_option, explanation, stem_html, explanation_html, stem)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [...values, q.stem]
           );
           keep.add(Number(lastInsertRowid));
@@ -161,9 +171,11 @@
         topic: r.topic_slug,
         topicName: r.topic_name,
         stem: r.stem,
+        stemHtml: r.stem_html,
         options: OPTIONS.map((k) => r['option_' + k.toLowerCase()]),
         answer: r.correct_option,
         explanation: r.explanation,
+        explanationHtml: r.explanation_html,
         answered: Number(r.answered),
         flags: Number(r.flags),
       };
@@ -173,17 +185,26 @@
     function questionInput(body) {
       const topic = db.get('SELECT id FROM topics WHERE slug = ?', [String(body.topic || '')]);
       if (!topic) throw new HttpError(400, 'Choose a topic.');
-      const stem = String(body.stem || '').trim();
-      if (!stem) throw new HttpError(400, 'Enter the question stem.');
+      if (!options.sanitizeHtml) throw new HttpError(500, 'Rich text is not available on this server.');
+      // Rich text is sanitized against the allowlist in public/rich.js; plain text is accepted too.
+      const richField = (htmlKey, textKey, asList, label) => {
+        const raw = body[htmlKey] !== undefined ? String(body[htmlKey]) : rich.textToHtml(body[textKey], asList);
+        if (raw.length > rich.MAX_LENGTH) throw new HttpError(400, `The ${label} is too large. Use smaller or fewer images.`);
+        const html = options.sanitizeHtml(raw).trim();
+        if (!rich.hasContent(html)) throw new HttpError(400, `Enter the ${label}.`);
+        return html;
+      };
+      const stemHtml = richField('stemHtml', 'stem', false, 'question stem');
+      const stem = rich.htmlToText(stemHtml) || '[image]';
       const opts = Array.isArray(body.options) ? body.options.map((o) => String(o || '').trim()) : [];
       if (opts.length !== 5) throw new HttpError(400, 'A question needs exactly five answer options.');
       const empty = opts.findIndex((o) => !o);
       if (empty !== -1) throw new HttpError(400, `Enter text for option ${OPTIONS[empty]}.`);
       const answer = String(body.answer || '').toUpperCase();
       if (!OPTIONS.includes(answer)) throw new HttpError(400, 'Mark which option is correct.');
-      const explanation = String(body.explanation || '').split('\n').map((l) => l.trim()).filter(Boolean).join('\n');
-      if (!explanation) throw new HttpError(400, 'Enter an explanation.');
-      return { topicId: topic.id, stem, opts, answer, explanation };
+      const explanationHtml = richField('explanationHtml', 'explanation', true, 'explanation');
+      const explanation = rich.htmlToText(explanationHtml) || '[image]';
+      return { topicId: topic.id, stem, stemHtml, opts, answer, explanation, explanationHtml };
     }
 
     // Questions first answered incorrectly whose latest re-attempt (if any) was not correct.
@@ -295,7 +316,7 @@
         const user = requireUser(token);
         const scope = params.scope === 'all' ? null : topicBySlug(params.scope);
         const q = db.get(
-          `SELECT q.id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e,
+          `SELECT q.id, q.stem, q.stem_html, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e,
                   t.slug AS topic_slug, t.name AS topic_name, a.selected_option AS first_selected,
                   r.selected_option AS last_selected
              ${REDO_FROM} ${scope ? 'AND q.topic_id = ?' : ''}
@@ -311,6 +332,7 @@
               ? {
                   id: Number(q.id),
                   stem: q.stem,
+                  stemHtml: q.stem_html,
                   options: OPTIONS.map((k) => ({ key: k, text: q['option_' + k.toLowerCase()] })),
                   topic: { slug: q.topic_slug, name: q.topic_name },
                   previous: q.last_selected || q.first_selected,
@@ -329,7 +351,7 @@
         if (!OPTIONS.includes(selected)) throw new HttpError(400, 'Choose one of the five answers.');
         const first = db.get('SELECT is_correct FROM answers WHERE user_id = ? AND question_id = ?', [user.id, questionId]);
         if (!first || Number(first.is_correct) === 1) throw new HttpError(409, 'That question is not on your redo list.');
-        const q = db.get('SELECT correct_option, explanation FROM questions WHERE id = ?', [questionId]);
+        const q = db.get('SELECT correct_option, explanation, explanation_html FROM questions WHERE id = ?', [questionId]);
         const isCorrect = selected === q.correct_option ? 1 : 0;
         const at = new Date().toISOString();
         if (db.get('SELECT id FROM redo_attempts WHERE user_id = ? AND question_id = ?', [user.id, questionId])) {
@@ -340,7 +362,7 @@
             [user.id, questionId, selected, isCorrect, at]);
         }
         return {
-          body: { correct: !!isCorrect, selected, correctOption: q.correct_option, explanation: q.explanation, summary: redoSummary(user.id) },
+          body: { correct: !!isCorrect, selected, correctOption: q.correct_option, explanation: q.explanation, explanationHtml: q.explanation_html, summary: redoSummary(user.id) },
         };
       },
 
@@ -348,7 +370,7 @@
         const user = requireUser(token);
         const topic = topicBySlug(params.slug);
         const q = db.get(
-          `SELECT q.id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e
+          `SELECT q.id, q.stem, q.stem_html, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e
              FROM questions q
             WHERE q.topic_id = ?
               AND NOT EXISTS (SELECT 1 FROM answers a WHERE a.question_id = q.id AND a.user_id = ?)
@@ -365,6 +387,7 @@
               ? {
                   id: Number(q.id),
                   stem: q.stem,
+                  stemHtml: q.stem_html,
                   options: OPTIONS.map((k) => ({ key: k, text: q['option_' + k.toLowerCase()] })),
                   ...flagState(user.id, q.id),
                 }
@@ -378,7 +401,7 @@
         const questionId = Number(body.questionId);
         const selected = String(body.selected || '').toUpperCase();
         if (!OPTIONS.includes(selected)) throw new HttpError(400, 'Choose one of the five answers.');
-        const q = db.get('SELECT id, correct_option, explanation FROM questions WHERE id = ?', [questionId]);
+        const q = db.get('SELECT id, correct_option, explanation, explanation_html FROM questions WHERE id = ?', [questionId]);
         if (!q) throw new HttpError(404, 'That question does not exist.');
         if (db.get('SELECT id FROM answers WHERE user_id = ? AND question_id = ?', [user.id, questionId])) {
           throw new HttpError(409, 'You have already answered this question.');
@@ -389,7 +412,7 @@
           [user.id, questionId, selected, isCorrect]
         );
         return {
-          body: { correct: !!isCorrect, selected, correctOption: q.correct_option, explanation: q.explanation },
+          body: { correct: !!isCorrect, selected, correctOption: q.correct_option, explanation: q.explanation, explanationHtml: q.explanation_html },
         };
       },
 
@@ -419,8 +442,8 @@
       async 'GET /api/flags'({ token }) {
         const user = requireUser(token);
         const rows = db.all(
-          `SELECT q.id, q.stem, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option,
-                  q.explanation, t.slug AS topic_slug, t.name AS topic_name, f.note, f.flagged_at,
+          `SELECT q.id, q.stem, q.stem_html, q.option_a, q.option_b, q.option_c, q.option_d, q.option_e, q.correct_option,
+                  q.explanation, q.explanation_html, t.slug AS topic_slug, t.name AS topic_name, f.note, f.flagged_at,
                   a.selected_option, a.is_correct
              FROM flags f
              JOIN questions q ON q.id = f.question_id
@@ -435,9 +458,11 @@
             questions: rows.map((r) => ({
               id: Number(r.id),
               stem: r.stem,
+              stemHtml: r.stem_html,
               options: OPTIONS.map((k) => ({ key: k, text: r['option_' + k.toLowerCase()] })),
               correctOption: r.correct_option,
               explanation: r.explanation,
+              explanationHtml: r.explanation_html,
               topic: { slug: r.topic_slug, name: r.topic_name },
               note: r.note,
               flaggedAt: r.flagged_at,
@@ -461,9 +486,10 @@
         requireAdmin(token);
         const q = questionInput(body);
         const { lastInsertRowid } = db.run(
-          `INSERT INTO questions (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [q.topicId, q.stem, ...q.opts, q.answer, q.explanation]
+          `INSERT INTO questions (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation,
+                                  stem_html, explanation_html)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [q.topicId, q.stem, ...q.opts, q.answer, q.explanation, q.stemHtml, q.explanationHtml]
         );
         return { body: { question: adminQuestion(lastInsertRowid), remarked: 0 } };
       },
@@ -478,8 +504,8 @@
         const q = questionInput(body);
         db.run(
           `UPDATE questions SET topic_id = ?, stem = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, option_e = ?,
-                  correct_option = ?, explanation = ? WHERE id = ?`,
-          [q.topicId, q.stem, ...q.opts, q.answer, q.explanation, id]
+                  correct_option = ?, explanation = ?, stem_html = ?, explanation_html = ? WHERE id = ?`,
+          [q.topicId, q.stem, ...q.opts, q.answer, q.explanation, q.stemHtml, q.explanationHtml, id]
         );
         let remarked = 0;
         if (before.correct_option !== q.answer) {
@@ -489,6 +515,17 @@
           }
         }
         return { body: { question: adminQuestion(id), remarked } };
+      },
+
+      // Stores an image for rich text and returns the URL to embed. The browser resizes images first.
+      async 'POST /api/admin/images'({ token, body }) {
+        requireAdmin(token);
+        if (!options.saveImage) throw new HttpError(500, 'Image upload is not available here.');
+        const m = /^data:(image\/(?:png|jpeg|gif|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(body.dataUrl || ''));
+        if (!m) throw new HttpError(400, 'Upload a PNG, JPEG, GIF or WebP image.');
+        if (m[2].length * 0.75 > 3 * 1024 * 1024) throw new HttpError(400, 'Images must be under 3 MB.');
+        const url = await options.saveImage({ mime: m[1], base64: m[2] });
+        return { body: { url } };
       },
 
       async 'DELETE /api/admin/questions/:id'({ token, params }) {
