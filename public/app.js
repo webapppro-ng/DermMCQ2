@@ -3,7 +3,8 @@
 
   const app = document.getElementById('app');
   const nav = document.getElementById('nav');
-  const state = { user: null, view: 'auth', topic: null, authTab: 'login', flags: [], flagIndex: 0, revealed: new Set(), redoScope: 'all' };
+  const state = { user: null, view: 'auth', topic: null, authTab: 'login', flags: [], flagIndex: 0, revealed: new Set(), redoScope: 'all',
+    admin: { topics: [], questions: [], filter: { q: '', topic: 'all', sort: 'order' }, limit: 50, notice: '' }, editId: null };
   const REDO_ICON = '<svg class="flag-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 3.5v3.5H9.5M12.6 7A5 5 0 1 0 13 10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   const FLAG_ICON = '<svg class="flag-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 15V1.5M3 2h9l-2 3.5L12 9H3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 
@@ -36,9 +37,10 @@
     nav.hidden = !state.user;
     if (!state.user) return;
     document.getElementById('nav-user').textContent = state.user.name;
-    for (const v of ['topics', 'flagged', 'performance']) {
+    document.getElementById('nav-admin').hidden = !state.user.isAdmin;
+    for (const v of ['topics', 'flagged', 'performance', 'admin']) {
       const el = document.getElementById('nav-' + v);
-      if (state.view === v) el.setAttribute('aria-current', 'page');
+      if (state.view === v || (v === 'admin' && state.view === 'admin-edit')) el.setAttribute('aria-current', 'page');
       else el.removeAttribute('aria-current');
     }
   }
@@ -52,6 +54,10 @@
     if (state.view === 'performance') return renderPerformance();
     if (state.view === 'flagged') return renderFlagged();
     if (state.view === 'redo') return renderRedo();
+    if (state.view === 'admin' || state.view === 'admin-edit') {
+      if (!state.user.isAdmin) { state.view = 'topics'; return renderTopics(); }
+      return state.view === 'admin' ? renderAdmin() : renderAdminEdit();
+    }
   }
 
   /* ---------- Auth ---------- */
@@ -303,6 +309,214 @@
       submit.disabled = false;
       submit.onclick = opts.next;
       submit.focus();
+    };
+  }
+
+  /* ---------- Question bank admin (administrators only) ---------- */
+  const shared = () => window.DermAPI.mode === 'shared';
+
+  async function loadAdmin() {
+    const { topics, questions } = await api('GET', '/api/admin/questions');
+    state.admin.topics = topics;
+    state.admin.questions = questions;
+  }
+
+  async function renderAdmin() {
+    await loadAdmin();
+    const a = state.admin;
+    const counts = {};
+    a.questions.forEach((q) => (counts[q.topic] = (counts[q.topic] || 0) + 1));
+    app.innerHTML = `
+      <div>
+        <p class="eyebrow">Administrator</p>
+        <h1>Question bank</h1>
+        <p class="lede">Edit any question's topic, stem, answer options, correct answer and explanation.
+          ${shared() ? 'Changes are saved to the shared question bank; other people see them the next time they open the page.' : 'Changes apply for everyone straight away.'}</p>
+      </div>
+      ${a.notice ? `<p class="notice notice-ok" role="status">${esc(a.notice)}</p>` : ''}
+      <div class="row admin-tools">
+        <input type="search" id="admin-search" placeholder="Search stems, options and explanations" value="${esc(a.filter.q)}" aria-label="Search questions">
+        <select id="admin-topic" aria-label="Filter by topic">
+          <option value="all">All topics (${a.questions.length})</option>
+          ${a.topics.map((t) => `<option value="${esc(t.slug)}"${a.filter.topic === t.slug ? ' selected' : ''}>${esc(t.name)} (${counts[t.slug] || 0})</option>`).join('')}
+        </select>
+        ${shared() ? '' : `<select id="admin-sort" aria-label="Sort questions">
+          <option value="order">Topic order</option>
+          <option value="flags"${a.filter.sort === 'flags' ? ' selected' : ''}>Most flagged</option>
+          <option value="answered"${a.filter.sort === 'answered' ? ' selected' : ''}>Most answered</option>
+        </select>`}
+        <span class="spacer"></span>
+        <button class="btn btn-primary" type="button" id="admin-new">Add question</button>
+      </div>
+      <div id="admin-results"></div>`;
+    a.notice = '';
+    const update = () => { a.limit = 50; drawAdminResults(); };
+    document.getElementById('admin-search').oninput = (e) => { a.filter.q = e.target.value; update(); };
+    document.getElementById('admin-topic').onchange = (e) => { a.filter.topic = e.target.value; update(); };
+    const sort = document.getElementById('admin-sort');
+    if (sort) sort.onchange = (e) => { a.filter.sort = e.target.value; update(); };
+    document.getElementById('admin-new').onclick = () => { state.editId = 'new'; go('admin-edit'); };
+    drawAdminResults();
+  }
+
+  function adminFiltered() {
+    const a = state.admin;
+    const words = a.filter.q.toLowerCase().split(/\s+/).filter(Boolean);
+    let list = a.questions.filter((q) => {
+      if (a.filter.topic !== 'all' && q.topic !== a.filter.topic) return false;
+      if (!words.length) return true;
+      const hay = [q.id, q.stem, ...q.options, q.explanation].join(' ').toLowerCase();
+      return words.every((w) => hay.includes(w));
+    });
+    if (a.filter.sort === 'flags') list = [...list].sort((x, y) => y.flags - x.flags || x.id - y.id);
+    if (a.filter.sort === 'answered') list = [...list].sort((x, y) => y.answered - x.answered || x.id - y.id);
+    return list;
+  }
+
+  function drawAdminResults() {
+    const a = state.admin;
+    const list = adminFiltered();
+    const shown = list.slice(0, a.limit);
+    const counts = !shared();
+    document.getElementById('admin-results').innerHTML = `
+      <p class="hint num">${list.length === a.questions.length ? `${list.length} questions` : `${list.length} of ${a.questions.length} questions match`}</p>
+      ${list.length ? `
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead><tr><th class="n">#</th><th>Question</th><th class="admin-topic">Topic</th><th class="n">Answer</th>
+            ${counts ? '<th class="n">Answered</th><th class="n">Flags</th>' : ''}<th><span class="sr-only">Edit</span></th></tr></thead>
+          <tbody>
+            ${shown.map((q) => `
+              <tr>
+                <td class="n">${q.id}</td>
+                <td class="admin-stem"><span>${esc(q.stem)}</span></td>
+                <td class="admin-topic">${esc(q.topicName)}</td>
+                <td class="n"><span class="key-chip">${q.answer}</span></td>
+                ${counts ? `<td class="n">${q.answered}</td><td class="n">${q.flags ? `<span class="chip">${q.flags}</span>` : '0'}</td>` : ''}
+                <td class="n"><button class="btn btn-ghost btn-sm" type="button" data-edit="${q.id}">Edit</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+      ${list.length > shown.length ? `<div class="row"><button class="btn btn-ghost" type="button" id="admin-more">Show ${Math.min(50, list.length - shown.length)} more</button></div>` : ''}`
+      : '<div class="card"><p class="lede" style="margin:0">No questions match. Try a different search or topic.</p></div>'}`;
+    document.querySelectorAll('[data-edit]').forEach((b) => (b.onclick = () => { state.editId = Number(b.dataset.edit); go('admin-edit'); }));
+    const more = document.getElementById('admin-more');
+    if (more) more.onclick = () => { a.limit += 50; drawAdminResults(); };
+  }
+
+  async function renderAdminEdit() {
+    if (!state.admin.questions.length) await loadAdmin();
+    const a = state.admin;
+    const isNew = state.editId === 'new';
+    const q = isNew
+      ? { topic: a.filter.topic !== 'all' ? a.filter.topic : a.topics[0].slug, stem: '', options: ['', '', '', '', ''], answer: '', explanation: '', answered: 0, flags: 0 }
+      : a.questions.find((x) => x.id === state.editId);
+    if (!q) { a.notice = 'That question no longer exists.'; return go('admin'); }
+    app.innerHTML = `
+      <section class="quiz admin-edit">
+        <div>
+          <button class="back" type="button" id="back">← Question bank</button>
+          <div class="quiz-head">
+            <h2>${isNew ? 'Add a question' : `Edit question #${q.id}`}</h2>
+            ${isNew || shared() ? '' : `<span class="eyebrow num">${q.answered} answer${q.answered === 1 ? '' : 's'} · ${q.flags} flag${q.flags === 1 ? '' : 's'}</span>`}
+          </div>
+        </div>
+        <form class="form" id="qform" novalidate>
+          <div class="field">
+            <label for="q-topic">Topic</label>
+            <select id="q-topic">${a.topics.map((t) => `<option value="${esc(t.slug)}"${t.slug === q.topic ? ' selected' : ''}>${esc(t.name)}</option>`).join('')}</select>
+          </div>
+          <div class="field">
+            <label for="q-stem">Question stem</label>
+            <textarea id="q-stem" rows="6">${esc(q.stem)}</textarea>
+          </div>
+          <fieldset class="field option-edit">
+            <legend>Answer options <span class="muted">(select the correct one)</span></legend>
+            ${['A', 'B', 'C', 'D', 'E'].map((k, i) => `
+              <div class="option-row${q.answer === k ? ' is-answer' : ''}">
+                <label class="answer-pick" title="Mark ${k} as the correct answer">
+                  <input type="radio" name="q-answer" value="${k}"${q.answer === k ? ' checked' : ''}>
+                  <span class="key">${k}</span>
+                </label>
+                <input id="q-opt-${k}" aria-label="Option ${k}" value="${esc(q.options[i])}">
+              </div>`).join('')}
+          </fieldset>
+          <div class="field">
+            <label for="q-expl">Explanation</label>
+            <textarea id="q-expl" rows="7">${esc(q.explanation)}</textarea>
+            <span class="hint">One point per line. Several lines are shown to users as a bulleted list.</span>
+          </div>
+          <p class="notice" id="answer-warning" hidden></p>
+          <p class="error" id="form-error" hidden></p>
+          <div class="row actions">
+            <button class="btn btn-primary" type="submit" id="save">${isNew ? 'Add question' : 'Save changes'}</button>
+            <button class="btn btn-ghost" type="button" id="cancel">Cancel</button>
+            <span class="spacer"></span>
+            ${isNew ? '' : '<button class="btn btn-danger" type="button" id="delete">Delete question</button>'}
+          </div>
+          <p class="hint" id="delete-confirm" hidden></p>
+        </form>
+      </section>`;
+    const back = () => go('admin');
+    document.getElementById('back').onclick = back;
+    document.getElementById('cancel').onclick = back;
+    const form = document.getElementById('qform');
+    const warn = document.getElementById('answer-warning');
+    form.querySelectorAll('input[name="q-answer"]').forEach((r) => (r.onchange = () => {
+      form.querySelectorAll('.option-row').forEach((row) => row.classList.toggle('is-answer', row.querySelector('input[type=radio]').checked));
+      const changed = !isNew && r.value !== q.answer;
+      warn.hidden = !changed;
+      if (changed) {
+        warn.textContent = shared()
+          ? `Changing the correct answer from ${q.answer} to ${r.value} re-marks everyone's answers to this question the next time they open the page.`
+          : `Changing the correct answer from ${q.answer} to ${r.value} re-marks the ${q.answered} existing answer${q.answered === 1 ? '' : 's'} to this question.`;
+      }
+    }));
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const errEl = document.getElementById('form-error');
+      const picked = form.querySelector('input[name="q-answer"]:checked');
+      const payload = {
+        topic: document.getElementById('q-topic').value,
+        stem: document.getElementById('q-stem').value,
+        options: ['A', 'B', 'C', 'D', 'E'].map((k) => document.getElementById('q-opt-' + k).value),
+        answer: picked ? picked.value : '',
+        explanation: document.getElementById('q-expl').value,
+      };
+      const save = document.getElementById('save');
+      save.disabled = true;
+      try {
+        const out = isNew
+          ? await api('POST', '/api/admin/questions', payload)
+          : await api('PUT', `/api/admin/questions/${q.id}`, payload);
+        a.notice = isNew
+          ? `Added question #${out.question.id} to ${out.question.topicName}.`
+          : `Saved question #${out.question.id}.${out.remarked ? ` ${out.remarked} answer${out.remarked === 1 ? ' was' : 's were'} re-marked against the new correct answer.` : ''}`;
+        go('admin');
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.hidden = false;
+        save.disabled = false;
+      }
+    };
+    const del = document.getElementById('delete');
+    if (del) del.onclick = async () => {
+      const c = document.getElementById('delete-confirm');
+      if (!del.dataset.armed) {
+        del.dataset.armed = '1';
+        del.textContent = 'Confirm delete';
+        c.textContent = `This permanently removes question #${q.id}${shared() ? '' : `, along with ${q.answered} answer${q.answered === 1 ? '' : 's'} and ${q.flags} flag${q.flags === 1 ? '' : 's'} on it`}. It cannot be undone.`;
+        c.hidden = false;
+        return;
+      }
+      try {
+        await api('DELETE', `/api/admin/questions/${q.id}`);
+        a.notice = `Deleted question #${q.id}.`;
+        go('admin');
+      } catch (err) {
+        c.textContent = err.message;
+      }
     };
   }
 

@@ -1,5 +1,5 @@
 -- DermMCQ question bank seed
--- Generated 2026-10-04 by scripts/export-seed-sql.js: 15 topics, 507 questions.
+-- Generated 2026-11-20 by scripts/export-seed-sql.js: 15 topics, 507 questions.
 -- Contains the schema plus topics and questions only (no users, answers or flags).
 --
 -- Seed a new database:   npm run db:seed
@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
   name          TEXT NOT NULL,
   password_hash TEXT NOT NULL,
+  is_admin      INTEGER NOT NULL DEFAULT 0 CHECK (is_admin IN (0,1)),
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

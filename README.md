@@ -14,9 +14,11 @@ npm start            # http://localhost:3000
 ```
 
 Environment variables: `PORT` (default 3000), `DB_FILE` (default `data/dermmcq.sqlite`),
-`NODE_ENV=production` (marks the session cookie `Secure`; serve over HTTPS).
+`NODE_ENV=production` (marks the session cookie `Secure`; serve over HTTPS), `ADMIN_EMAILS`
+(comma-separated emails that become administrators when they sign up or log in).
 
-The database is created and seeded from `db/questions.json` on first start.
+On first start the empty question bank is loaded from `db/questions.json`. From then on the database is the
+source of truth: edits made in the admin dashboard are kept across restarts.
 
 ## Data model (`db/schema.sql`)
 
@@ -24,7 +26,7 @@ The database is created and seeded from `db/questions.json` on first start.
 |-------------|---------|
 | `topics`    | The 15 question areas |
 | `questions` | `stem`, `option_a`…`option_e`, `correct_option` (`A`–`E`), `explanation`, `topic_id` |
-| `users`     | Email, name, scrypt password hash |
+| `users`     | Email, name, scrypt password hash, `is_admin` |
 | `sessions`  | Login tokens (HTTP-only cookie, 30 days) |
 | `answers`   | One row per user per question: selected option and whether it was correct |
 | `flags`     | Questions a user has flagged for review, with an optional note |
@@ -42,7 +44,9 @@ page shows how many questions are flagged and opens a reviewer that steps throug
 
 The topics page also has a "Redo incorrect answers" option. It serves the questions a user got wrong, from all
 topics or one topic. A question leaves the list once it is answered correctly; answered wrongly again, it
-moves to the back of the queue. The first attempt stays the recorded score on the Performance page. Each question's `source` field records where it came from in the document
+moves to the back of the queue. The first attempt stays the recorded score on the Performance page.
+
+Each question's `source` field in `db/questions.json` records where it came from in the document
 (`PQ.12` = practice question 12, `P1.5` / `P2.5` = question 5 of paper 1 / paper 2). Explanations store
 one point per line and are shown as a bulleted list.
 
@@ -65,17 +69,36 @@ After changing questions, regenerate the snapshot from the database with `npm ru
 `npm run db:export -- path/to/db.sqlite path/to/out.sql`). If no database exists yet, the export builds
 the bank from `db/questions.json`.
 
-The server still syncs the database with `db/questions.json` every time it starts, so keep that file as the
-place to edit questions and export the SQL file afterwards; otherwise edits made directly in the database
-are overwritten from the JSON file on the next start.
+Run `npm run db:export` after editing questions in the admin dashboard to keep the snapshot current.
 
-## Adding or editing questions
+## Admin dashboard
 
-Edit `db/questions.json` (exactly five options, `answer` is a letter A–E) and restart the server. On start
-the database is synced with the file: new topics and questions are added, edited questions are updated in
-place, and questions removed from the file are deleted along with users' answers to them. A question is
-identified by its stem plus its first option, so users keep their answers when a question moves topic or
-its explanation changes.
+Administrators see an **Admin** link in the menu. It opens the question bank: every question with search,
+a topic filter and (on the server) sorting by most flagged or most answered. Each question can be edited —
+topic, stem, the five options, which option is correct, and the explanation (one point per line) — and
+questions can be added or deleted. Changing the correct option re-marks users' existing answers and redo
+attempts for that question against the new key. Only administrators can open the dashboard or call the
+`/api/admin/*` routes; everyone else gets a 403.
+
+Making someone an administrator (they must have signed up first):
+
+```sh
+npm run admin -- grant you@example.com
+npm run admin -- revoke someone@example.com
+npm run admin -- list
+ADMIN_EMAILS=you@example.com npm start    # or promote automatically at sign-up / log-in
+```
+
+In the hosted page the page's owner is the administrator. Their edits are saved to the page's shared
+storage and reach other viewers the next time they open it.
+
+## Loading changes from `db/questions.json`
+
+`npm run db:sync` makes an existing database match `db/questions.json`: new topics and questions are
+added, matching questions are updated, and questions not in the file are deleted along with users'
+answers to them. A question is matched by its stem plus first option. This overwrites admin-dashboard
+edits to questions that are also in the file, so use either the dashboard or the file as the place you
+edit questions.
 
 ## API
 
@@ -95,6 +118,10 @@ its explanation changes.
 | GET  | `/api/flags` | Flagged questions with answer, explanation, note and the user's own answer, newest first |
 | GET  | `/api/redo/:scope/next` | Next incorrectly answered question to redo; `scope` is `all` or a topic slug |
 | POST | `/api/redo/answer` | `{questionId, selected}` → correctness, explanation and the updated redo counts |
+| GET  | `/api/admin/questions` | Admin: every question with topic, options, answer, explanation and answer/flag counts |
+| POST | `/api/admin/questions` | Admin: add a question `{topic, stem, options[5], answer, explanation}` |
+| PUT  | `/api/admin/questions/:id` | Admin: save all fields of a question; re-marks answers if the key changes |
+| DELETE | `/api/admin/questions/:id` | Admin: delete a question with its answers, flags and redo attempts |
 
 All routes live in `src/core.js`, which is written against a small SQL adapter so the same code runs on
 the server and in the browser prototype.

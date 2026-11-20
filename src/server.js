@@ -24,8 +24,10 @@ const db = {
 
 const schema = fs.readFileSync(path.join(ROOT, 'db', 'schema.sql'), 'utf8');
 const questions = JSON.parse(fs.readFileSync(path.join(ROOT, 'db', 'questions.json'), 'utf8'));
+// The question file only fills an empty bank; after that the database (edited in the admin dashboard)
+// is the source of truth. Run `npm run db:sync` to apply changes made to db/questions.json.
 const added = seed(db, schema, questions);
-if (added) console.log(`Added ${added} questions to the bank.`);
+if (added) console.log(`Loaded ${added} questions into the empty bank.`);
 
 const scrypt = promisify(nodeCrypto.scrypt);
 const crypto = {
@@ -43,7 +45,9 @@ const crypto = {
   randomToken: () => nodeCrypto.randomBytes(32).toString('hex'),
 };
 
-const app = createApp(db, crypto);
+// Comma-separated emails that become administrators when they sign up or log in.
+// Accounts can also be promoted with `npm run admin -- grant <email>`.
+const app = createApp(db, crypto, { adminEmails: (process.env.ADMIN_EMAILS || '').split(',') });
 const server = express();
 server.use(express.json());
 

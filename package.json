@@ -8,7 +8,9 @@
     "start": "node --no-warnings=ExperimentalWarning src/server.js",
     "build:prototype": "node scripts/build-prototype.js",
     "db:export": "node --no-warnings=ExperimentalWarning scripts/export-seed-sql.js",
-    "db:seed": "node --no-warnings=ExperimentalWarning scripts/seed-from-sql.js"
+    "db:seed": "node --no-warnings=ExperimentalWarning scripts/seed-from-sql.js",
+    "db:sync": "node --no-warnings=ExperimentalWarning scripts/sync-questions.js",
+    "admin": "node --no-warnings=ExperimentalWarning scripts/admin.js"
   },
   "engines": {
     "node": ">=22.13"

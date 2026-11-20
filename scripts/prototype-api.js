@@ -70,7 +70,8 @@
     return uid ? { db, userCap, uid } : null;
   }
 
-  let app, sql, mode = 'local', token = null, persist = async () => {};
+  const EDITS = 'questionEdits'; // shared collection: the owner's question-bank edits, one document per question
+  let app, sql, mode = 'local', token = null, persist = async () => {}, saveEdit = null;
 
   const ready = (async () => {
     const SQL = await initSqlJs();
@@ -83,16 +84,55 @@
       DermCore.seed(db, window.DERM_SCHEMA, window.DERM_SEED);
       app = DermCore.createApp(db, cryptoImpl);
       const me = await shared.userCap.me();
-      const userId = db.run('INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)',
-        ['viewer@claude.ai', me.name || '', '!']).lastInsertRowid;
+      // The page's owner is the administrator of the shared question bank.
+      const userId = db.run('INSERT INTO users (email, name, password_hash, is_admin) VALUES (?, ?, ?, ?)',
+        ['viewer@claude.ai', me.name || '', '!', me.isOwner ? 1 : 0]).lastInsertRowid;
       db.run("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, '9999-12-31')", [SHARED_TOKEN, userId]);
       token = SHARED_TOKEN;
 
+      // Keys come from the questions as shipped in the page, before edits, so progress saved against a
+      // question still finds it after its stem or options are edited.
       const keyToId = {}, idToKey = {};
       for (const q of db.all('SELECT id, stem, option_a FROM questions')) {
         const k = stemKey(q.stem + '\n' + q.option_a);
         keyToId[k] = q.id; idToKey[q.id] = k;
       }
+      const topicId = (slug) => (db.get('SELECT id FROM topics WHERE slug = ?', [slug]) || {}).id;
+      const edits = await shared.db.collection(EDITS).limit(1000).get().catch(() => ({ docs: [] }));
+      for (const d of edits.docs) {
+        const e = d.data() || {};
+        const id = keyToId[d.id];
+        if (e.deleted) {
+          if (id) { db.run('DELETE FROM questions WHERE id = ?', [id]); delete keyToId[d.id]; delete idToKey[id]; }
+          continue;
+        }
+        const tid = topicId(e.topic);
+        if (!tid || !Array.isArray(e.options) || e.options.length !== 5 || !/^[A-E]$/.test(e.answer)) continue;
+        const values = [tid, String(e.stem), ...e.options.map(String), e.answer, String(e.explanation || '')];
+        if (id) {
+          db.run(`UPDATE questions SET topic_id = ?, stem = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, option_e = ?,
+                  correct_option = ?, explanation = ? WHERE id = ?`, [...values, id]);
+        } else {
+          const nid = db.run(`INSERT INTO questions (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation)
+                              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, values).lastInsertRowid;
+          keyToId[d.id] = nid; idToKey[nid] = d.id;
+        }
+      }
+      // Writes one admin change to the shared bank so every viewer gets it on their next visit.
+      saveEdit = async (method, path, out) => {
+        const at = new Date().toISOString();
+        if (method === 'DELETE') {
+          const id = Number(path.split('/').pop());
+          const k = idToKey[id];
+          delete keyToId[k]; delete idToKey[id];
+          return shared.db.collection(EDITS).doc(k).set({ deleted: true, at });
+        }
+        const q = out.body.question;
+        if (!idToKey[q.id]) { const k = 'n' + hex(crypto.getRandomValues(new Uint8Array(8))); idToKey[q.id] = k; keyToId[k] = q.id; }
+        return shared.db.collection(EDITS).doc(idToKey[q.id]).set({
+          topic: q.topic, stem: q.stem, options: q.options, answer: q.answer, explanation: q.explanation, at,
+        });
+      };
       const progressRef = shared.db.doc('data/users/' + shared.uid + '/progress');
       const snap = await progressRef.get();
       const savedDoc = (snap.exists && snap.data()) || {};
@@ -110,6 +150,11 @@
         if (!keyToId[k]) continue;
         db.run('INSERT OR IGNORE INTO flags (user_id, question_id, note, flagged_at) VALUES (?, ?, ?, ?)',
           [userId, keyToId[k], String((f && f.n) || '').slice(0, 500), String((f && f.at) || '')]);
+      }
+      // Re-mark saved answers against the current key, in case the owner has changed an answer since.
+      for (const table of ['answers', 'redo_attempts']) {
+        db.run(`UPDATE ${table} SET is_correct = CASE WHEN selected_option =
+                  (SELECT correct_option FROM questions q WHERE q.id = ${table}.question_id) THEN 1 ELSE 0 END`);
       }
 
       let chain = Promise.resolve();
@@ -140,7 +185,10 @@
     try { sql = saved ? new SQL.Database(fromB64(saved)) : new SQL.Database(); }
     catch (e) { sql = new SQL.Database(); }
     DermCore.seed(adapter(sql), window.DERM_SCHEMA, window.DERM_SEED);
-    app = DermCore.createApp(adapter(sql), cryptoImpl);
+    // Single-device prototype: the first account created in this browser administers its question bank.
+    sql.run(`UPDATE users SET is_admin = 1 WHERE id = (SELECT MIN(id) FROM users)
+               AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin = 1)`);
+    app = DermCore.createApp(adapter(sql), cryptoImpl, { firstUserIsAdmin: true });
     token = store.get(TOKEN_KEY);
     persist = async () => {
       store.set(DB_KEY, toB64(sql.export()));
@@ -156,6 +204,13 @@
       return { status: 400, body: { error: 'You are signed in with your claude.ai account.' } };
     }
     const out = await app.handle(method, path, body ? JSON.parse(JSON.stringify(body)) : null, token);
+    if (saveEdit && method !== 'GET' && out.status === 200 && path.startsWith('/api/admin/questions')) {
+      try {
+        await saveEdit(method, path, out);
+      } catch (e) {
+        return { status: 500, body: { error: 'The change was made on this page but could not be saved to the shared question bank. Reload and try again.' } };
+      }
+    }
     if (mode === 'local') {
       if (out.token) { token = out.token; store.set(TOKEN_KEY, token); }
       else if (out.token === null) { token = null; store.del(TOKEN_KEY); }

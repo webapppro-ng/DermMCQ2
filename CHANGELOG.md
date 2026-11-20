@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Admin dashboard for administrators: browse, search and filter the question bank; edit any question's
+  topic, stem, options, correct answer and explanation; add and delete questions. Changing an answer key
+  re-marks existing answers. Server administrators are set with `npm run admin` or `ADMIN_EMAILS`; on the
+  hosted page the owner is the administrator.
+- The question file now only fills an empty bank; the database is the source of truth afterwards so admin
+  edits persist. `npm run db:sync` applies `db/questions.json` explicitly.
+
 ## Version 1 (1.0.0) — 2026-11-20
 
 First complete version of DermMCQ.

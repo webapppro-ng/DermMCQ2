@@ -31,13 +31,23 @@
     }
   }
 
-  // Makes the database match the question file. Safe to run on every start:
-  // topics are added, renamed and reordered, and topics no longer in the file are removed;
-  // questions are matched by stem and first option, so an existing question keeps its id (and users' answers to it)
-  // while its topic, options, answer and explanation are updated; new questions are inserted;
-  // questions no longer in the file are deleted, together with users' answers to them.
-  function seed(db, schemaSql, topicsData) {
+  // Brings an existing database up to the current schema (CREATE TABLE IF NOT EXISTS cannot add columns).
+  function migrate(db) {
+    const cols = db.all('PRAGMA table_info(users)', []).map((c) => c.name);
+    if (!cols.includes('is_admin')) db.exec('ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // Creates the schema and loads the question file.
+  //   mode 'missing' (default): load the file only into an empty question bank. Once a bank exists the
+  //     database is the source of truth, so edits made in the admin dashboard are never overwritten.
+  //   mode 'sync': make the bank match the file (npm run db:sync). Topics are added, renamed, reordered
+  //     and removed; questions are matched by stem and first option, so an existing question keeps its id
+  //     (and users' answers to it) while its other fields are updated; new questions are inserted;
+  //     questions no longer in the file are deleted together with users' answers, flags and redo attempts.
+  function seed(db, schemaSql, topicsData, mode = 'missing') {
     db.exec(schemaSql);
+    migrate(db);
+    if (mode !== 'sync' && Number(db.get('SELECT COUNT(*) AS n FROM questions', []).n) > 0) return 0;
     let added = 0;
     db.exec('BEGIN');
     try {
@@ -91,9 +101,21 @@
     return added;
   }
 
-  function createApp(db, crypto) {
+  // options.adminEmails: emails that are made administrators when they sign up or log in.
+  // options.firstUserIsAdmin: the first account created becomes an administrator (single-device prototype).
+  function createApp(db, crypto, options = {}) {
+    const adminEmails = new Set((options.adminEmails || []).map((e) => String(e).trim().toLowerCase()).filter(Boolean));
+
     function publicUser(u) {
-      return { id: Number(u.id), name: u.name, email: u.email };
+      return { id: Number(u.id), name: u.name, email: u.email, isAdmin: !!Number(u.is_admin) };
+    }
+
+    function promoteIfListed(user) {
+      if (adminEmails.has(String(user.email).toLowerCase()) && !Number(user.is_admin)) {
+        db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [user.id]);
+        user.is_admin = 1;
+      }
+      return user;
     }
 
     function startSession(userId) {
@@ -106,7 +128,7 @@
     function userFromToken(token) {
       if (!token) return null;
       const row = db.get(
-        `SELECT u.id, u.name, u.email FROM sessions s JOIN users u ON u.id = s.user_id
+        `SELECT u.id, u.name, u.email, u.is_admin FROM sessions s JOIN users u ON u.id = s.user_id
          WHERE s.token = ? AND s.expires_at > ?`,
         [token, new Date().toISOString()]
       );
@@ -117,6 +139,51 @@
       const user = userFromToken(token);
       if (!user) throw new HttpError(401, 'Please log in to continue.');
       return user;
+    }
+
+    function requireAdmin(token) {
+      const user = requireUser(token);
+      if (!Number(user.is_admin)) throw new HttpError(403, 'Only administrators can use the question bank admin.');
+      return user;
+    }
+
+    function adminQuestion(id) {
+      const r = db.get(
+        `SELECT q.*, t.slug AS topic_slug, t.name AS topic_name,
+                (SELECT COUNT(*) FROM answers a WHERE a.question_id = q.id) AS answered,
+                (SELECT COUNT(*) FROM flags f WHERE f.question_id = q.id) AS flags
+           FROM questions q JOIN topics t ON t.id = q.topic_id WHERE q.id = ?`,
+        [id]
+      );
+      if (!r) return null;
+      return {
+        id: Number(r.id),
+        topic: r.topic_slug,
+        topicName: r.topic_name,
+        stem: r.stem,
+        options: OPTIONS.map((k) => r['option_' + k.toLowerCase()]),
+        answer: r.correct_option,
+        explanation: r.explanation,
+        answered: Number(r.answered),
+        flags: Number(r.flags),
+      };
+    }
+
+    // Validates an admin edit; returns the clean fields or throws a message naming what to fix.
+    function questionInput(body) {
+      const topic = db.get('SELECT id FROM topics WHERE slug = ?', [String(body.topic || '')]);
+      if (!topic) throw new HttpError(400, 'Choose a topic.');
+      const stem = String(body.stem || '').trim();
+      if (!stem) throw new HttpError(400, 'Enter the question stem.');
+      const opts = Array.isArray(body.options) ? body.options.map((o) => String(o || '').trim()) : [];
+      if (opts.length !== 5) throw new HttpError(400, 'A question needs exactly five answer options.');
+      const empty = opts.findIndex((o) => !o);
+      if (empty !== -1) throw new HttpError(400, `Enter text for option ${OPTIONS[empty]}.`);
+      const answer = String(body.answer || '').toUpperCase();
+      if (!OPTIONS.includes(answer)) throw new HttpError(400, 'Mark which option is correct.');
+      const explanation = String(body.explanation || '').split('\n').map((l) => l.trim()).filter(Boolean).join('\n');
+      if (!explanation) throw new HttpError(400, 'Enter an explanation.');
+      return { topicId: topic.id, stem, opts, answer, explanation };
     }
 
     // Questions first answered incorrectly whose latest re-attempt (if any) was not correct.
@@ -190,15 +257,19 @@
           'INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)',
           [email, name, hash]
         );
-        const user = { id: lastInsertRowid, name, email };
+        if (options.firstUserIsAdmin && Number(db.get('SELECT COUNT(*) AS n FROM users', []).n) === 1) {
+          db.run('UPDATE users SET is_admin = 1 WHERE id = ?', [lastInsertRowid]);
+        }
+        const user = promoteIfListed(db.get('SELECT id, name, email, is_admin FROM users WHERE id = ?', [lastInsertRowid]));
         return { body: { user: publicUser(user) }, token: startSession(lastInsertRowid) };
       },
 
       async 'POST /api/login'({ body }) {
         const email = String(body.email || '').trim().toLowerCase();
-        const user = db.get('SELECT id, name, email, password_hash FROM users WHERE email = ?', [email]);
+        const user = db.get('SELECT id, name, email, is_admin, password_hash FROM users WHERE email = ?', [email]);
         const ok = user && (await crypto.verifyPassword(String(body.password || ''), user.password_hash));
         if (!ok) throw new HttpError(401, 'Email or password is incorrect.');
+        promoteIfListed(user);
         return { body: { user: publicUser(user) }, token: startSession(user.id) };
       },
 
@@ -376,6 +447,59 @@
         };
       },
 
+      // ----- Question bank admin (administrators only) -----
+      async 'GET /api/admin/questions'({ token }) {
+        requireAdmin(token);
+        const topics = db.all('SELECT slug, name FROM topics ORDER BY sort_order', []);
+        const ids = db.all(
+          'SELECT q.id FROM questions q JOIN topics t ON t.id = q.topic_id ORDER BY t.sort_order, q.id', []
+        );
+        return { body: { topics, questions: ids.map((r) => adminQuestion(r.id)) } };
+      },
+
+      async 'POST /api/admin/questions'({ token, body }) {
+        requireAdmin(token);
+        const q = questionInput(body);
+        const { lastInsertRowid } = db.run(
+          `INSERT INTO questions (topic_id, stem, option_a, option_b, option_c, option_d, option_e, correct_option, explanation)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [q.topicId, q.stem, ...q.opts, q.answer, q.explanation]
+        );
+        return { body: { question: adminQuestion(lastInsertRowid), remarked: 0 } };
+      },
+
+      // Saves every field of a question. If the correct option changes, users' answers and redo
+      // attempts for this question are re-marked against the new key.
+      async 'PUT /api/admin/questions/:id'({ token, params, body }) {
+        requireAdmin(token);
+        const id = Number(params.id);
+        const before = db.get('SELECT correct_option FROM questions WHERE id = ?', [id]);
+        if (!before) throw new HttpError(404, 'That question no longer exists.');
+        const q = questionInput(body);
+        db.run(
+          `UPDATE questions SET topic_id = ?, stem = ?, option_a = ?, option_b = ?, option_c = ?, option_d = ?, option_e = ?,
+                  correct_option = ?, explanation = ? WHERE id = ?`,
+          [q.topicId, q.stem, ...q.opts, q.answer, q.explanation, id]
+        );
+        let remarked = 0;
+        if (before.correct_option !== q.answer) {
+          remarked = Number(db.get('SELECT COUNT(*) AS n FROM answers WHERE question_id = ?', [id]).n);
+          for (const table of ['answers', 'redo_attempts']) {
+            db.run(`UPDATE ${table} SET is_correct = CASE WHEN selected_option = ? THEN 1 ELSE 0 END WHERE question_id = ?`, [q.answer, id]);
+          }
+        }
+        return { body: { question: adminQuestion(id), remarked } };
+      },
+
+      async 'DELETE /api/admin/questions/:id'({ token, params }) {
+        requireAdmin(token);
+        const id = Number(params.id);
+        if (!db.get('SELECT id FROM questions WHERE id = ?', [id])) throw new HttpError(404, 'That question no longer exists.');
+        for (const table of ['answers', 'flags', 'redo_attempts']) db.run(`DELETE FROM ${table} WHERE question_id = ?`, [id]);
+        db.run('DELETE FROM questions WHERE id = ?', [id]);
+        return { body: { ok: true } };
+      },
+
       async 'POST /api/topics/:slug/reset'({ token, params }) {
         const user = requireUser(token);
         const topic = topicBySlug(params.slug);
@@ -429,5 +553,5 @@
     return { handle };
   }
 
-  return { seed, createApp, HttpError };
+  return { seed, migrate, createApp, HttpError };
 });
